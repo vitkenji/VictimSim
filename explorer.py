@@ -54,14 +54,13 @@ class Explorer(AbstAgent):
         self.map.add((self.x, self.y), 1, VS.NO_VICTIM, self.check_walls_and_lim())
 
     def get_next_position(self):
-        """ Randomically, gets the next position that can be explored (no wall and inside the grid)
-            There must be at least one CLEAR position in the neighborhood, otherwise it loops forever.
-        """
         # Check the neighborhood walls and grid limits
         obstacles = self.check_walls_and_lim()
+        
+        next_position = Explorer.AC_INCR[self.last_direction]
 
         # Check if the corresponding position in walls_and_lim is CLEAR
-        if obstacles[self.last_direction] == VS.CLEAR:
+        if obstacles[self.last_direction] == VS.CLEAR and not self.map.in_map(next_position):
             return Explorer.AC_INCR[self.last_direction]
         
         else:
@@ -72,39 +71,6 @@ class Explorer(AbstAgent):
                     if obstacles[direction] == VS.CLEAR:
                         self.last_direction = direction
                         return Explorer.AC_INCR[self.last_direction]
-            '''
-            if self.last_direction == 0:
-                self.last_direction = 2
-                if obstacles[self.last_direction] == VS.CLEAR:
-                    return Explorer.AC_INCR[self.last_direction]
-                else:
-                    self.last_direction = 4
-                    return Explorer.AC_INCR[self.last_direction]
-
-            elif self.last_direction == 2:
-                self.last_direction = 4
-                if obstacles[self.last_direction] == VS.CLEAR:
-                    return Explorer.AC_INCR[self.last_direction]
-                else:
-                    self.last_direction = 6
-                    return Explorer.AC_INCR[self.last_direction]
-            
-            elif self.last_direction == 4:
-                self.last_direction = 6
-                if obstacles[self.last_direction] == VS.CLEAR:
-                    return Explorer.AC_INCR[self.last_direction]
-                else:
-                    self.last_direction = 0
-                    return Explorer.AC_INCR[self.last_direction]
-            
-            elif self.last_direction == 6:
-                self.last_direction = 0
-                if obstacles[self.last_direction] == VS.CLEAR:
-                    return Explorer.AC_INCR[self.last_direction]
-                else:
-                    self.last_direction = 2
-                    return Explorer.AC_INCR[self.last_direction]
-        '''
 
     def explore(self):
         # get an random increment for x and y       
