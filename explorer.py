@@ -54,23 +54,28 @@ class Explorer(AbstAgent):
         self.map.add((self.x, self.y), 1, VS.NO_VICTIM, self.check_walls_and_lim())
 
     def get_next_position(self):
-        # Check the neighborhood walls and grid limits
-        obstacles = self.check_walls_and_lim()
         
-        next_position = Explorer.AC_INCR[self.last_direction]
+        obstacles = self.check_walls_and_lim()
+        valid_directions = []
 
-        # Check if the corresponding position in walls_and_lim is CLEAR
-        if obstacles[self.last_direction] == VS.CLEAR and not self.map.in_map(next_position):
+        for direction in range(8): 
+            next_x = self.x + Explorer.AC_INCR[direction][0]
+            next_y = self.y + Explorer.AC_INCR[direction][1]
+            next_coord = (next_x, next_y)
+
+            if obstacles[direction] == VS.CLEAR and not self.map.in_map(next_coord):
+                valid_directions.append(direction)
+
+        if valid_directions:
+            self.last_direction = random.choice(valid_directions)
             return Explorer.AC_INCR[self.last_direction]
         
-        else:
-            while True:
-            # Get a random direction
-                direction = random.randint(0, 7)
-                if self.last_direction != direction:
-                    if obstacles[direction] == VS.CLEAR:
-                        self.last_direction = direction
-                        return Explorer.AC_INCR[self.last_direction]
+        while True:
+            direction = random.randint(0, 7)
+            if obstacles[direction] == VS.CLEAR:
+                self.last_direction = direction
+                return Explorer.AC_INCR[self.last_direction]
+
 
     def explore(self):
         # get an random increment for x and y       
