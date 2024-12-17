@@ -10,6 +10,7 @@ from vs.abstract_agent import AbstAgent
 from vs.constants import VS
 from map import Map
 import heapq
+import time
 
 class Stack:
     def __init__(self):
@@ -48,7 +49,7 @@ class Explorer(AbstAgent):
                                    # the key is the seq number of the victim,(x,y) the position, <vs> the list of vital signals
         self.last_direction = 0
         self.finish = False
-
+        self.returning = False
         # put the current position - the base - in the map
         self.map.add((self.x, self.y), 1, VS.NO_VICTIM, self.check_walls_and_lim())
 
@@ -132,7 +133,7 @@ class Explorer(AbstAgent):
         return
 
     def come_back(self):
-        
+        self.returning = True
         obstacles = self.check_walls_and_lim()
 
         priority_queue = []
@@ -159,7 +160,7 @@ class Explorer(AbstAgent):
             
             if result == VS.BUMPED:
                 print(f"{self.NAME}: when coming back bumped at ({self.x+dx}, {self.y+dy}) , rtime: {self.get_rtime()}")
-                return
+                #eturn
         
             if result == VS.EXECUTED:
                 # update the agent's position relative to the origin
@@ -177,6 +178,7 @@ class Explorer(AbstAgent):
                     new_g = g + g_node
                     f_node = new_g + self.heuristics(next_x, next_y)
                     heapq.heappush(priority_queue, (f_node, g, next_coord))
+    
 
     def deliberate(self) -> bool:
         """ The agent chooses the next action. The simulator calls this
@@ -184,9 +186,10 @@ class Explorer(AbstAgent):
 
         # forth and back: go, read the vital signals and come back to the position
 
-        return_time = abs(1.7 * self.x * self.y)
+        return_time = 3 * (abs(self.x) + abs(self.y))
+        
         # keeps exploring while there is enough time
-        if self.get_rtime() > return_time and not self.finish:
+        if self.get_rtime() > return_time and not self.finish and not self.returning:
             self.explore()
             return True
 
@@ -197,7 +200,8 @@ class Explorer(AbstAgent):
             # finishes the execution of this agent
             return False
         
-        # proceed to the base
-        self.come_back()
+        if not self.returning:
+            self.come_back()
+            
         return True
 
