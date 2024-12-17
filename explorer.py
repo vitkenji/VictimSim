@@ -1,8 +1,5 @@
 # EXPLORER AGENT
 # @Author: Tacla, UTFPR
-#
-### It walks randomly in the environment looking for victims. When half of the
-### exploration has gone, the explorer goes back to the base.
 
 import sys
 import os
@@ -176,7 +173,9 @@ class Explorer(AbstAgent):
                 next_coord = (next_x, next_y)
 
                 if next_coord not in visited and obstacles[neighbor] == VS.CLEAR:
-                    f_node = g + self.heuristics(next_x, next_y)
+                    g_node = 1 if neighbor % 2 == 0 else 1.5
+                    new_g = g + g_node
+                    f_node = new_g + self.heuristics(next_x, next_y)
                     heapq.heappush(priority_queue, (f_node, g, next_coord))
 
     def deliberate(self) -> bool:
