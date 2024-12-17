@@ -50,7 +50,6 @@ class Explorer(AbstAgent):
         self.victims = {}          # a dictionary of found victims: (seq): ((x,y), [<vs>])
                                    # the key is the seq number of the victim,(x,y) the position, <vs> the list of vital signals
         self.last_direction = 0
-        self.base_position = (0,0)
         self.finish = False
 
         # put the current position - the base - in the map
@@ -146,11 +145,10 @@ class Explorer(AbstAgent):
         while priority_queue:
             f, g, node = heapq.heappop(priority_queue)
             if node == (0,0):
-                print("returned")
                 self.finish = True
                 self.x = 0
                 self.y = 0
-                return;
+                return
 
             if node in visited:
                 continue
@@ -178,9 +176,8 @@ class Explorer(AbstAgent):
                 next_coord = (next_x, next_y)
 
                 if next_coord not in visited and obstacles[neighbor] == VS.CLEAR:
-                    g_node = g
-                    f_node =g_node + self.heuristics(next_x, next_y)
-                    heapq.heappush(priority_queue, (f_node, g_node, next_coord))
+                    f_node = g + self.heuristics(next_x, next_y)
+                    heapq.heappush(priority_queue, (f_node, g, next_coord))
 
     def deliberate(self) -> bool:
         """ The agent chooses the next action. The simulator calls this
@@ -188,7 +185,6 @@ class Explorer(AbstAgent):
 
         # forth and back: go, read the vital signals and come back to the position
 
-        time_tolerance = 2* self.COST_DIAG * Explorer.MAX_DIFFICULTY + self.COST_READ
         return_time = abs(1.7 * self.x * self.y)
         # keeps exploring while there is enough time
         if self.get_rtime() > return_time and not self.finish:
