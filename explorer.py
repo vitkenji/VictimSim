@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from vs.abstract_agent import AbstAgent
 from vs.constants import VS
 from map import Map
+import heapq
 
 class Stack:
     def __init__(self):
@@ -49,9 +50,15 @@ class Explorer(AbstAgent):
         self.victims = {}          # a dictionary of found victims: (seq): ((x,y), [<vs>])
                                    # the key is the seq number of the victim,(x,y) the position, <vs> the list of vital signals
         self.last_direction = 0
+        self.base_position = (0,0)
+        self.finish = False
 
         # put the current position - the base - in the map
         self.map.add((self.x, self.y), 1, VS.NO_VICTIM, self.check_walls_and_lim())
+
+    
+    def heuristics(self, x, y):
+        return math.sqrt(x**2 + y**2)
 
     def get_next_position(self):
         
@@ -129,21 +136,52 @@ class Explorer(AbstAgent):
         return
 
     def come_back(self):
-        dx, dy = self.walk_stack.pop()
-        dx = dx * -1
-        dy = dy * -1
+        
+        obstacles = self.check_walls_and_lim()
 
-        result = self.walk(dx, dy)
-        if result == VS.BUMPED:
-            print(f"{self.NAME}: when coming back bumped at ({self.x+dx}, {self.y+dy}) , rtime: {self.get_rtime()}")
-            return
+        priority_queue = []
+        heapq.heappush(priority_queue, (self.heuristics(self.x, self.y), 0, (self.x, self.y)))
+        visited = set()
+
+        while priority_queue:
+            f, g, node = heapq.heappop(priority_queue)
+            if node == (0,0):
+                print("returned")
+                self.finish = True
+                self.x = 0
+                self.y = 0
+                return;
+
+            if node in visited:
+                continue
+            
+            visited.add(node)
+            
+            dx = node[0] - self.x
+            dy = node[1] - self.y
+            
+            result = self.walk(dx, dy)
+            
+            if result == VS.BUMPED:
+                print(f"{self.NAME}: when coming back bumped at ({self.x+dx}, {self.y+dy}) , rtime: {self.get_rtime()}")
+                return
         
-        if result == VS.EXECUTED:
-            # update the agent's position relative to the origin
-            self.x += dx
-            self.y += dy
-            #print(f"{self.NAME}: coming back at ({self.x}, {self.y}), rtime: {self.get_rtime()}")
-        
+            if result == VS.EXECUTED:
+                # update the agent's position relative to the origin
+                self.x += dx
+                self.y += dy
+                #print(f"{self.NAME}: coming back at ({self.x}, {self.y}), rtime: {self.get_rtime()}")
+            
+            for neighbor in range(8):
+                next_x = self.x + Explorer.AC_INCR[neighbor][0]
+                next_y = self.y + Explorer.AC_INCR[neighbor][1]
+                next_coord = (next_x, next_y)
+
+                if next_coord not in visited and obstacles[neighbor] == VS.CLEAR:
+                    g_node = g
+                    f_node =g_node + self.heuristics(next_x, next_y)
+                    heapq.heappush(priority_queue, (f_node, g_node, next_coord))
+
     def deliberate(self) -> bool:
         """ The agent chooses the next action. The simulator calls this
         method at each cycle. Must be implemented in every agent"""
@@ -151,9 +189,9 @@ class Explorer(AbstAgent):
         # forth and back: go, read the vital signals and come back to the position
 
         time_tolerance = 2* self.COST_DIAG * Explorer.MAX_DIFFICULTY + self.COST_READ
-
+        return_time = abs(1.7 * self.x * self.y)
         # keeps exploring while there is enough time
-        if  self.walk_time < (self.get_rtime() - time_tolerance):
+        if self.get_rtime() > return_time and not self.finish:
             self.explore()
             return True
 
