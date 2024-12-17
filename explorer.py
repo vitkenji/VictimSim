@@ -146,6 +146,7 @@ class Explorer(AbstAgent):
                 self.finish = True
                 self.x = 0
                 self.y = 0
+                print(self.get_rtime())
                 return
 
             if node in visited:
@@ -186,7 +187,7 @@ class Explorer(AbstAgent):
 
         # forth and back: go, read the vital signals and come back to the position
 
-        return_time = 3 * (abs(self.x) + abs(self.y))
+        return_time = 3.5 * (abs(self.x) + abs(self.y))
         
         # keeps exploring while there is enough time
         if self.get_rtime() > return_time and not self.finish and not self.returning:
