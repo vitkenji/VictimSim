@@ -49,7 +49,6 @@ class Explorer(AbstAgent):
                                    # the key is the seq number of the victim,(x,y) the position, <vs> the list of vital signals
         self.last_direction = 0
         self.finish = False
-        self.returning = False
         # put the current position - the base - in the map
         self.map.add((self.x, self.y), 1, VS.NO_VICTIM, self.check_walls_and_lim())
 
@@ -133,7 +132,7 @@ class Explorer(AbstAgent):
         return
 
     def come_back(self):
-        self.returning = True
+        print("coming back")
         obstacles = self.check_walls_and_lim()
 
         priority_queue = []
@@ -146,7 +145,7 @@ class Explorer(AbstAgent):
                 self.finish = True
                 self.x = 0
                 self.y = 0
-                print(self.get_rtime())
+                print(f"Finished with: {self.get_rtime()}")
                 return
 
             if node in visited:
@@ -158,11 +157,7 @@ class Explorer(AbstAgent):
             dy = node[1] - self.y
             
             result = self.walk(dx, dy)
-            
-            if result == VS.BUMPED:
-                print(f"{self.NAME}: when coming back bumped at ({self.x+dx}, {self.y+dy}) , rtime: {self.get_rtime()}")
-                #eturn
-        
+                    
             if result == VS.EXECUTED:
                 # update the agent's position relative to the origin
                 self.x += dx
@@ -179,6 +174,7 @@ class Explorer(AbstAgent):
                     new_g = g + g_node
                     f_node = new_g + self.heuristics(next_x, next_y)
                     heapq.heappush(priority_queue, (f_node, g, next_coord))
+            
     
 
     def deliberate(self) -> bool:
@@ -187,10 +183,10 @@ class Explorer(AbstAgent):
 
         # forth and back: go, read the vital signals and come back to the position
 
-        return_time = 3.5 * (abs(self.x) + abs(self.y))
+        return_time = 3.4 * (abs(self.x) + abs(self.y))
         
         # keeps exploring while there is enough time
-        if self.get_rtime() > return_time and not self.finish and not self.returning:
+        if self.get_rtime() > return_time and not self.finish:
             self.explore()
             return True
 
@@ -201,8 +197,7 @@ class Explorer(AbstAgent):
             # finishes the execution of this agent
             return False
         
-        if not self.returning:
-            self.come_back()
+        self.come_back()
             
         return True
 
