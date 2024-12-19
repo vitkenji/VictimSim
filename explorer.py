@@ -11,6 +11,7 @@ from vs.constants import VS
 from map import Map
 import heapq
 import time
+from collections import deque
 
 class Stack:
     def __init__(self):
@@ -134,46 +135,59 @@ class Explorer(AbstAgent):
     def come_back(self):
         print("coming back")
         obstacles = self.check_walls_and_lim()
-
+        
+        plan = deque()
+        
         priority_queue = []
         heapq.heappush(priority_queue, (self.heuristics(self.x, self.y), 0, (self.x, self.y)))
         visited = set()
-
+        parent_map = { (self.x, self.y): None }
+        
         while priority_queue:
             f, g, node = heapq.heappop(priority_queue)
-            if node == (0,0):
+            
+            if node == (0, 0):
+                current = node
+                while current != (self.x, self.y):
+                    parent = parent_map[current]
+                    plan.appendleft(current)
+                    current = parent
                 self.finish = True
-                self.x = 0
-                self.y = 0
-                print(f"Finished with: {self.get_rtime()}")
-                return
-
+                break
+            
             if node in visited:
                 continue
             
             visited.add(node)
             
-            dx = node[0] - self.x
-            dy = node[1] - self.y
-            
-            result = self.walk(dx, dy)
-                    
-            if result == VS.EXECUTED:
-                # update the agent's position relative to the origin
-                self.x += dx
-                self.y += dy
-                #print(f"{self.NAME}: coming back at ({self.x}, {self.y}), rtime: {self.get_rtime()}")
-            
             for neighbor in range(8):
-                next_x = self.x + Explorer.AC_INCR[neighbor][0]
-                next_y = self.y + Explorer.AC_INCR[neighbor][1]
+                next_x = node[0] + Explorer.AC_INCR[neighbor][0]
+                next_y = node[1] + Explorer.AC_INCR[neighbor][1]
                 next_coord = (next_x, next_y)
 
                 if next_coord not in visited and obstacles[neighbor] == VS.CLEAR:
                     g_node = 1 if neighbor % 2 == 0 else 1.5
                     new_g = g + g_node
                     f_node = new_g + self.heuristics(next_x, next_y)
-                    heapq.heappush(priority_queue, (f_node, g, next_coord))
+                    
+                    parent_map[next_coord] = node
+                    
+                    heapq.heappush(priority_queue, (f_node, new_g, next_coord))
+
+        if plan:
+            for next_pos in plan:
+                dx, dy = next_pos[0] - self.x, next_pos[1] - self.y
+                
+                result = self.walk(dx, dy)
+                
+                if result == VS.EXECUTED:
+                    self.x += dx
+                    self.y += dy
+                    print(f"Moving to {next_pos}, rtime: {self.get_rtime()}")
+                else:
+                    print(f"Failed to move to {next_pos}")
+        
+        return
             
     
 
@@ -183,7 +197,7 @@ class Explorer(AbstAgent):
 
         # forth and back: go, read the vital signals and come back to the position
 
-        return_time = 3.6 * (abs(self.x) + abs(self.y))
+        return_time = 200
         
         # keeps exploring while there is enough time
         if self.get_rtime() > return_time and not self.finish:
