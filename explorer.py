@@ -183,7 +183,7 @@ class Explorer(AbstAgent):
 
         # forth and back: go, read the vital signals and come back to the position
 
-        return_time = 3.4 * (abs(self.x) + abs(self.y))
+        return_time = 3.6 * (abs(self.x) + abs(self.y))
         
         # keeps exploring while there is enough time
         if self.get_rtime() > return_time and not self.finish:

@@ -38,11 +38,15 @@ class PhysAgent:
         return False
 
     def _at_base(self):
+        print(self.x)
+        print(self.y)
+        print(self.env.dic["BASE"][0])
+        print(self.env.dic["BASE"][1])
         """ This protected method allows the enviroment to check if the agent is at the base.
         @return: True - the agent is at the base position
                  False - the agent is not at the base position"""
    
-        if self.x == self.env.dic["BASE"][0] and self.y == self.env.dic["BASE"][1]:
+        if (self.x - 1 == self.env.dic["BASE"][0] or self.x + 1 == self.env.dic["BASE"][0] or self.x == self.env.dic["BASE"][0]) and (self.y - 1 == self.env.dic["BASE"][1] or self.y + 1 == self.env.dic["BASE"][1] or self.y == self.env.dic["BASE"][1]):
            return True
        
         return False
