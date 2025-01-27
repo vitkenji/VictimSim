@@ -1,37 +1,20 @@
-# EXPLORER AGENT
-# @Author: Tacla, UTFPR
-
 import sys
 import os
 import random
 import math
 from abc import ABC, abstractmethod
-from vs.abstract_agent import AbstAgent
+from vs.abstract_agent import AbstAgent, PriorityQueue, Stack
 from vs.constants import VS
 from map import Map
 import heapq
 import time
 from collections import deque
 
-class Stack:
-    def __init__(self):
-        self.items = []
-
-    def push(self, item):
-        self.items.append(item)
-
-    def pop(self):
-        if not self.is_empty():
-            return self.items.pop()
-
-    def is_empty(self):
-        return len(self.items) == 0
-
 class Explorer(AbstAgent):
     """ class attribute """
     MAX_DIFFICULTY = 1             # the maximum degree of difficulty to enter into a cell
     
-    def __init__(self, env, config_file, resc):
+    def __init__(self, env, config_file, resc, direction=0):
         """ Construtor do agente random on-line
         @param env: a reference to the environment 
         @param config_file: the absolute path to the explorer's config file
@@ -48,42 +31,157 @@ class Explorer(AbstAgent):
         self.map = Map()           # create a map for representing the environment
         self.victims = {}          # a dictionary of found victims: (seq): ((x,y), [<vs>])
                                    # the key is the seq number of the victim,(x,y) the position, <vs> the list of vital signals
-        self.last_direction = 0
         self.finish = False
         # put the current position - the base - in the map
         self.map.add((self.x, self.y), 1, VS.NO_VICTIM, self.check_walls_and_lim())
 
+        self.backtracking_stack = Stack()
+        self.direction = direction
+        self.cells_known = {(0,0): {"visited": True, "difficulty" : 1, "cost_to_base": 0}}
     
+    def __get_current_pos(self) -> tuple:
+        return (self.x, self.y)
+    
+
+    def actions(self) -> tuple:
+        obstacles = self.check_walls_and_lim()
+
+        possible_actions = []
+        
+        for i, obstacle in enumerate(obstacles):
+            if obstacle == VS.CLEAR:
+                action = Explorer.AC_INCR[i]
+                possible_actions.append(action)
+            else:
+                possible_actions.append(None)
+
+        rotate_n = self.direction
+        if rotate_n != 0:
+            possible_actions = possible_actions[rotate_n:] + possible_actions[:rotate_n]
+
+        possible_actions = [i for i in possible_actions if i is not None]
+
+        return possible_actions
+
+
+    def online_dfs(self):
+        possible_actions = self.actions()
+
+        current_pos = self.__get_current_pos()
+
+        next_action = None
+
+        for action in possible_actions:
+
+            next_position = (current_pos[0] + action[0], current_pos[1] + action[1])
+            
+            if next_position not in self.cells_known.keys():
+                self.cells_known[next_position] = {"visited": False, "difficulty" : None, "cost_to_base": None}
+
+            if self.cells_known[next_position]["visited"] == False and not next_action:
+                next_action = action
+
+        if not next_action:
+            return 0,0
+        
+        return next_action
+
+
+    def backtrack(self):
+        visited_locations = [key for key, value in self.cells_known.items() if value["visited"] == True]
+
+        possible_goals = []
+        for pos in visited_locations:
+            if len(self.get_adjacents_unvisited(pos)) > 0:
+                possible_goals.append(pos)
+
+        min_cost = None
+        best_path = None
+
+        index = 0
+        loc_range = 10 if len(possible_goals) > 10 else len(possible_goals)
+
+        possible_goals = possible_goals[::-1]
+
+        while not best_path and len(possible_goals) >= index + loc_range:
+
+            for goal in possible_goals[index:index+loc_range]:
+                path, cost = self.a_star_search(self.__get_current_pos(), goal)
+                if path == [] or cost == -1:
+                    pass
+                elif min_cost is None or cost < min_cost:
+                    min_cost = cost
+                    best_path = path
+
+            index += loc_range
+            if loc_range + index > len(possible_goals):
+                loc_range = len(possible_goals) - index 
+
+        if not best_path:
+            return
+        
+        last_step = best_path[-1]
+        for step in reversed(best_path[:-1]):
+            delta_step = (step[0]-last_step[0], step[1]-last_step[1])
+            self.backtracking_stack.push(delta_step)
+            last_step = step
+        self.backtracking_stack.items.reverse()
+
+
+    def min_cost_to_base(self):
+
+        current_pos = self.__get_current_pos()
+
+        min_cost = self.cells_known[current_pos]["cost_to_base"]
+
+        coordinates = [
+            (-1, -1), 
+            (-1,  0),   
+            (-1,  1), 
+            (0 , -1),  
+            (0 ,  0),   
+            (0 ,  1),  
+            (1 , -1),  
+            (1 ,  0),
+            (1 ,  1)   
+        ]
+
+        keys = self.cells_known.keys()
+
+        for coord in coordinates:
+            pos = tuple(map(sum, zip(current_pos, coord)))
+            if pos in keys:
+                cost = self.cells_known[pos]["cost_to_base"]
+
+                if (cost is not None) and (min_cost is None or cost < min_cost):
+                    min_cost = cost
+
+        return min_cost
+    
+    def stack_comeback(self, path):
+        if not self.walk_stack.is_empty():
+            self.walk_stack = Stack()
+        while len(path) > 1:
+            dx = path[1][0] - path[0][0]
+            dy = path[1][1] - path[0][1]
+            self.walk_stack.push((dx, dy))
+            path.pop(0)
+
     def heuristics(self, x, y):
         return math.sqrt(x**2 + y**2)
 
-    def get_next_position(self):
+    def explore(self):  
+        if not self.backtracking_stack.is_empty():
+            dx, dy = self.backtracking_stack.pop()
+        else:
+            dx, dy = self.online_dfs()
         
-        obstacles = self.check_walls_and_lim()
-        valid_directions = []
-
-        for direction in range(8): 
-            next_x = self.x + Explorer.AC_INCR[direction][0]
-            next_y = self.y + Explorer.AC_INCR[direction][1]
-            next_coord = (next_x, next_y)
-
-            if obstacles[direction] == VS.CLEAR and not self.map.in_map(next_coord):
-                valid_directions.append(direction)
-
-        if valid_directions:
-            self.last_direction = random.choice(valid_directions)
-            return Explorer.AC_INCR[self.last_direction]
-        
-        while True:
-            direction = random.randint(0, 7)
-            if obstacles[direction] == VS.CLEAR:
-                self.last_direction = direction
-                return Explorer.AC_INCR[self.last_direction]
-
-
-    def explore(self):
-        # get an random increment for x and y       
-        dx, dy = self.get_next_position()
+        if dx == dy == 0:
+            self.backtrack()
+            if not self.backtracking_stack.is_empty():
+                dx, dy = self.backtracking_stack.pop()
+            else:
+                dx, dy = 0, 0
 
         # Moves the body to another position  
         rtime_bef = self.get_rtime()
@@ -111,6 +209,8 @@ class Explorer(AbstAgent):
             self.walk_time = self.walk_time + (rtime_bef - rtime_aft)
             #print(f"{self.NAME} walk time: {self.walk_time}")
 
+            self.cells_known[self.__get_current_pos()]["visited"] = True
+
             # Check for victims
             seq = self.check_for_victim()
             if seq != VS.NO_VICTIM:
@@ -125,6 +225,9 @@ class Explorer(AbstAgent):
                 difficulty = difficulty / self.COST_LINE
             else:
                 difficulty = difficulty / self.COST_DIAG
+
+            self.cells_known[self.__get_current_pos()]["difficulty"] = difficulty
+            self.cells_known[self.__get_current_pos()]["cost_to_base"] = self.min_cost_to_base() + self.cells_known[self.__get_current_pos()]["difficulty"]
 
             # Update the map with the new cell
             self.map.add((self.x, self.y), difficulty, seq, self.check_walls_and_lim())
@@ -197,7 +300,7 @@ class Explorer(AbstAgent):
 
         # forth and back: go, read the vital signals and come back to the position
 
-        return_time = 200
+        return_time = 500
         
         # keeps exploring while there is enough time
         if self.get_rtime() > return_time and not self.finish:

@@ -22,12 +22,14 @@ def main(data_folder_name, config_ag_folder_name):
     rescuer_file = os.path.join(config_ag_folder, "rescuer_1_config.txt")
     master_rescuer = Rescuer(env, rescuer_file, 4)   # 4 is the number of explorer agents
 
+    direction_list = [1,5,3,7,0,4,2,6]
+
     # Explorer needs to know rescuer to send the map 
     # that's why rescuer is instatiated before
     for exp in range(1, 5):
         filename = f"explorer_{exp:1d}_config.txt"
         explorer_file = os.path.join(config_ag_folder, filename)
-        Explorer(env, explorer_file, master_rescuer)
+        Explorer(env, explorer_file, master_rescuer, direction=direction_list[exp % len(direction_list)])
 
     # Run the environment simulator
     env.run()
