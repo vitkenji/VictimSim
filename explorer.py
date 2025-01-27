@@ -22,8 +22,6 @@ class Explorer(AbstAgent):
         """
 
         super().__init__(env, config_file)
-        self.walk_stack = Stack()  # a stack to store the movements
-        self.walk_time = 0         # time consumed to walk when exploring (to decide when to come back)
         self.set_state(VS.ACTIVE)  # explorer is active since the begin
         self.resc = resc           # reference to the rescuer agent
         self.x = 0                 # current x position relative to the origin 0
@@ -35,7 +33,7 @@ class Explorer(AbstAgent):
         # put the current position - the base - in the map
         self.map.add((self.x, self.y), 1, VS.NO_VICTIM, self.check_walls_and_lim())
 
-        self.backtracking_stack = Stack()
+        self.stack = Stack()
         self.direction = direction
         self.cells_known = {(0,0): {"visited": True, "difficulty" : 1, "cost_to_base": 0}}
     
@@ -55,13 +53,11 @@ class Explorer(AbstAgent):
             else:
                 possible_actions.append(None)
 
-        rotate_n = self.direction
-        if rotate_n != 0:
-            possible_actions = possible_actions[rotate_n:] + possible_actions[:rotate_n]
+        rotate = self.direction
+        if rotate != 0:
+            possible_actions = possible_actions[rotate:] + possible_actions[:rotate]
 
-        possible_actions = [i for i in possible_actions if i is not None]
-
-        return possible_actions
+        return [i for i in possible_actions if i is not None]
 
 
     def online_dfs(self):
@@ -87,7 +83,7 @@ class Explorer(AbstAgent):
         return next_action
 
 
-    def backtrack(self):
+    def backtracking(self):
         visited_locations = [key for key, value in self.cells_known.items() if value["visited"] == True]
 
         possible_goals = []
@@ -123,63 +119,23 @@ class Explorer(AbstAgent):
         last_step = best_path[-1]
         for step in reversed(best_path[:-1]):
             delta_step = (step[0]-last_step[0], step[1]-last_step[1])
-            self.backtracking_stack.push(delta_step)
+            self.stack.push(delta_step)
             last_step = step
-        self.backtracking_stack.items.reverse()
-
-
-    def min_cost_to_base(self):
-
-        current_pos = self.__get_current_pos()
-
-        min_cost = self.cells_known[current_pos]["cost_to_base"]
-
-        coordinates = [
-            (-1, -1), 
-            (-1,  0),   
-            (-1,  1), 
-            (0 , -1),  
-            (0 ,  0),   
-            (0 ,  1),  
-            (1 , -1),  
-            (1 ,  0),
-            (1 ,  1)   
-        ]
-
-        keys = self.cells_known.keys()
-
-        for coord in coordinates:
-            pos = tuple(map(sum, zip(current_pos, coord)))
-            if pos in keys:
-                cost = self.cells_known[pos]["cost_to_base"]
-
-                if (cost is not None) and (min_cost is None or cost < min_cost):
-                    min_cost = cost
-
-        return min_cost
-    
-    def stack_comeback(self, path):
-        if not self.walk_stack.is_empty():
-            self.walk_stack = Stack()
-        while len(path) > 1:
-            dx = path[1][0] - path[0][0]
-            dy = path[1][1] - path[0][1]
-            self.walk_stack.push((dx, dy))
-            path.pop(0)
+        self.stack.items.reverse()
 
     def heuristics(self, x, y):
         return math.sqrt(x**2 + y**2)
 
     def explore(self):  
-        if not self.backtracking_stack.is_empty():
-            dx, dy = self.backtracking_stack.pop()
+        if not self.stack.is_empty():
+            dx, dy = self.stack.pop()
         else:
             dx, dy = self.online_dfs()
         
         if dx == dy == 0:
-            self.backtrack()
-            if not self.backtracking_stack.is_empty():
-                dx, dy = self.backtracking_stack.pop()
+            self.backtracking()
+            if not self.stack.is_empty():
+                dx, dy = self.stack.pop()
             else:
                 dx, dy = 0, 0
 
@@ -197,17 +153,10 @@ class Explorer(AbstAgent):
             #print(f"{self.NAME}: Wall or grid limit reached at ({self.x + dx}, {self.y + dy})")
 
         if result == VS.EXECUTED:
-            # check for victim returns -1 if there is no victim or the sequential
-            # the sequential number of a found victim
-            self.walk_stack.push((dx, dy))
 
             # update the agent's position relative to the origin
             self.x += dx
             self.y += dy
-
-            # update the walk time
-            self.walk_time = self.walk_time + (rtime_bef - rtime_aft)
-            #print(f"{self.NAME} walk time: {self.walk_time}")
 
             self.cells_known[self.__get_current_pos()]["visited"] = True
 
@@ -227,7 +176,6 @@ class Explorer(AbstAgent):
                 difficulty = difficulty / self.COST_DIAG
 
             self.cells_known[self.__get_current_pos()]["difficulty"] = difficulty
-            self.cells_known[self.__get_current_pos()]["cost_to_base"] = self.min_cost_to_base() + self.cells_known[self.__get_current_pos()]["difficulty"]
 
             # Update the map with the new cell
             self.map.add((self.x, self.y), difficulty, seq, self.check_walls_and_lim())
@@ -236,7 +184,6 @@ class Explorer(AbstAgent):
         return
 
     def come_back(self):
-        print("coming back")
         obstacles = self.check_walls_and_lim()
         
         plan = deque()
@@ -286,19 +233,13 @@ class Explorer(AbstAgent):
                 if result == VS.EXECUTED:
                     self.x += dx
                     self.y += dy
-                    print(f"Moving to {next_pos}, rtime: {self.get_rtime()}")
                 else:
                     print(f"Failed to move to {next_pos}")
-        
         return
             
-    
-
     def deliberate(self) -> bool:
         """ The agent chooses the next action. The simulator calls this
         method at each cycle. Must be implemented in every agent"""
-
-        # forth and back: go, read the vital signals and come back to the position
 
         return_time = 500
         
@@ -308,7 +249,7 @@ class Explorer(AbstAgent):
             return True
 
         # no more come back walk actions to execute or already at base
-        if self.walk_stack.is_empty() or (self.x == 0 and self.y == 0):
+        if (self.x == 0 and self.y == 0):
             # time to pass the map and found victims to the master rescuer
             self.resc.sync_explorers(self.map, self.victims)
             # finishes the execution of this agent
