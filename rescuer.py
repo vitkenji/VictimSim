@@ -12,6 +12,9 @@ from abc import ABC, abstractmethod
 from LRTAStar import *
 from sklearn.cluster import KMeans
 from concurrent.futures import ThreadPoolExecutor
+import classifier
+import regressor
+import pandas as pd
 
 class Rescuer(AbstAgent):
     def __init__(self, env, config_file, nb_of_explorers=1,clusters=[]):
@@ -32,8 +35,12 @@ class Rescuer(AbstAgent):
         self.y = 0
         self.clusters = clusters
         self.sequences = clusters
+
+        #model = training(file='datasets/data_4000v/env_vital_signals.txt')
+        #save(model, file='neural_network_model.pkl')
+        #model = load('neural_network_model.pkl')
+        #testing(model, 'datasets/data_800v/env_vital_signals.txt')
         
-                
         self.set_state(VS.IDLE)
 
     def save_cluster_csv(self, cluster, cluster_id):
@@ -81,12 +88,38 @@ class Rescuer(AbstAgent):
         return [cluster0, cluster1, cluster2, cluster3]
 
     def predict_severity_and_class(self):
+
+        classifier_model = classifier.training(file='datasets/data_4000v/env_vital_signals.txt')
+        classifier.save(classifier_model, file='classifier_model.pkl')
+        classifier_modell = classifier.load('classifier_model.pkl')
+        classifier.testing(classifier_model, 'datasets/data_800v/env_vital_signals.txt')
+        classifier_model = classifier.load('classifier_model.pkl')
+
+        regressor_model = regressor.training(file='datasets/data_4000v/env_vital_signals.txt')
+        regressor.save(regressor_model, file='regressor_model.pkl')
+        regressor_model = regressor.load('regressor_model.pkl')
+        regressor.testing(regressor_model, 'datasets/data_800v/env_vital_signals.txt')
+        regressor_model = classifier.load('regressor_model.pkl')
+
+        print(self.victims.items())
+    
+        dataframe = pd.DataFrame([victim[1][-3:] for _, victim in self.victims.items()])
+        dataframe.columns = [['qPA', 'pulso', 'freqResp']]
+
+        classification = classifier.predict(classifier_model, dataframe)
+        regression = regressor.predict(regressor_model, dataframe)
+
+        print(classification)
+        print(regression)
+        
+        index = 0
         for vic_id, values in self.victims.items():
-            severity_value = random.uniform(0.1, 99.9)
-            severity_class = random.randint(1, 4)
+            print(vic_id, classification[index], regression[index])
+            severity_value = regression[index]
+            severity_class = classification[index]
+            index += 1
             values[1].extend([severity_value, severity_class])
-
-
+    
     def sequencing(self):
         new_sequences = []
 

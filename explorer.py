@@ -233,8 +233,7 @@ class Explorer(AbstAgent):
                 if result == VS.EXECUTED:
                     self.x += dx
                     self.y += dy
-                else:
-                    print(f"Failed to move to {next_pos}")
+
         return
             
     def deliberate(self) -> bool:
