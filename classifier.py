@@ -6,13 +6,9 @@ from tensorflow.keras.layers import Dense, Softmax
 from tensorflow.keras.utils import to_categorical
 
 def training(file):
-    print("classifier training")
-
     dataframe = pd.DataFrame(pd.read_csv(file))
-
     x_train = dataframe[['qpa','pulse','freq']]
     y_train = dataframe['output']
-    
     y_train = y_train - 1  
 
     model = Sequential()
@@ -21,24 +17,16 @@ def training(file):
     model.add(Dense(4, activation='softmax')) 
 
     model.compile(optimizer=Adam(learning_rate=0.01), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-    
     model.fit(x_train, y_train, epochs=100, batch_size=32, verbose=1)
 
     return model
 
 def testing(model, file):
     dataframe = pd.DataFrame(pd.read_csv(file))
-    x_test = dataframe[['qpa','pulse', 'freq']]
-    y_test = dataframe['output']
-    
-    y_pred = model.predict(x_test)
-    y_pred_classes = y_pred.argmax(axis=1)
-    
-    return y_pred_classes
+    return model.predict(dataframe[['qpa','pulse', 'freq']]).argmax(axis=1)
 
 def predict(model, data: pd.DataFrame):
-    prediction = model.predict(data)
-    prediction_classes = prediction.argmax(axis=1) 
+    prediction_classes = model.predict(data).argmax(axis=1) 
     return prediction_classes + 1 
 
 def save(model, file):

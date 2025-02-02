@@ -237,9 +237,6 @@ class Explorer(AbstAgent):
         return
             
     def deliberate(self) -> bool:
-        """ The agent chooses the next action. The simulator calls this
-        method at each cycle. Must be implemented in every agent"""
-
         return_time = 500
         
         # keeps exploring while there is enough time

@@ -18,10 +18,7 @@ def training(file):
 
 def testing(model, file):
     dataframe = pd.DataFrame(pd.read_csv(file))
-    x_test = dataframe[['qpa', 'pulse', 'freq']]
-    y_test = dataframe['gravity']
-
-    predicting = model.predict(x_test)
+    predicting = model.predict(dataframe[['qpa', 'pulse', 'freq']])
 
 def predict(model, data: pd.DataFrame):
     return [float(val) for val in model.predict(data)]
