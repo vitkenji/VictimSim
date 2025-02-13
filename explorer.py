@@ -237,7 +237,9 @@ class Explorer(AbstAgent):
         return
             
     def deliberate(self) -> bool:
-        return_time = (abs(self.x) + abs(self.y))*7
+
+        return_time = (abs(self.x) + abs(self.y))*6.5
+        print(self.get_rtime(), return_time, self.finish)
         
         # keeps exploring while there is enough time
         if self.get_rtime() > return_time and not self.finish:
@@ -250,10 +252,58 @@ class Explorer(AbstAgent):
             self.resc.sync_explorers(self.map, self.victims)
             # finishes the execution of this agent
             return False
-        
+
+        print('come back')
         self.come_back()
             
         return True
+    
+    def cost_plan(self):
+        obstacles = self.check_walls_and_lim()
+        
+        plan = deque()
+        
+        priority_queue = []
+        heapq.heappush(priority_queue, (self.heuristics(self.x, self.y), 0, (self.x, self.y)))
+        visited = set()
+        parent_map = { (self.x, self.y): None }
+        
+        while priority_queue:
+            f, g, node = heapq.heappop(priority_queue)
+            
+            if node == (0, 0):
+                current = node
+                while current != (self.x, self.y):
+                    parent = parent_map[current]
+                    plan.appendleft(current)
+                    current = parent
+                break
+            
+            if node in visited:
+                continue
+            
+            visited.add(node)
+            
+            for neighbor in range(8):
+                next_x = node[0] + Explorer.AC_INCR[neighbor][0]
+                next_y = node[1] + Explorer.AC_INCR[neighbor][1]
+                next_coord = (next_x, next_y)
+
+                if next_coord not in visited and obstacles[neighbor] == VS.CLEAR:
+                    g_node = 1 if neighbor % 2 == 0 else 1.5
+                    new_g = g + g_node
+                    f_node = new_g + self.heuristics(next_x, next_y)
+                    
+                    parent_map[next_coord] = node
+                    
+                    heapq.heappush(priority_queue, (f_node, new_g, next_coord))
+        cost = 0
+        if plan:
+            for next_pos in plan:
+                cost += 2
+            return cost
+        else:
+            return (abs(self.x) + abs(self.y))*7 
     
     
 
