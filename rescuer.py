@@ -101,8 +101,6 @@ class Rescuer(AbstAgent):
         regressor.testing(regressor_model, 'datasets/data_800v/env_vital_signals.txt')
         regressor_model = classifier.load('regressor_model.pkl')
 
-        print(self.victims.items())
-    
         dataframe = pd.DataFrame([victim[1][-3:] for _, victim in self.victims.items()])
         dataframe.columns = [['qPA', 'pulso', 'freqResp']]
 

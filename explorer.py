@@ -237,7 +237,7 @@ class Explorer(AbstAgent):
         return
             
     def deliberate(self) -> bool:
-        return_time = 500
+        return_time = (abs(self.x) + abs(self.y))*7
         
         # keeps exploring while there is enough time
         if self.get_rtime() > return_time and not self.finish:
@@ -254,4 +254,6 @@ class Explorer(AbstAgent):
         self.come_back()
             
         return True
+    
+    
 
