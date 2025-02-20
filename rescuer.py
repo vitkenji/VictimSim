@@ -13,8 +13,10 @@ from LRTAStar import *
 from sklearn.cluster import KMeans
 from concurrent.futures import ThreadPoolExecutor
 import classifier
+import CART_classifier
 import regressor
 import pandas as pd
+import CART_regressor
 
 class Rescuer(AbstAgent):
     def __init__(self, env, config_file, nb_of_explorers=1,clusters=[]):
@@ -89,30 +91,47 @@ class Rescuer(AbstAgent):
 
     def predict_severity_and_class(self):
 
+        '''
         classifier_model = classifier.training(file='datasets/data_4000v/env_vital_signals.txt')
         classifier.save(classifier_model, file='classifier_model.pkl')
         classifier_modell = classifier.load('classifier_model.pkl')
         classifier.testing(classifier_model, 'datasets/data_800v/env_vital_signals.txt')
         classifier_model = classifier.load('classifier_model.pkl')
-
+        
+        '''
+        CART_classifier_model = CART_classifier.training(file='datasets/data_4000v/env_vital_signals.txt')
+        CART_classifier.save(CART_classifier_model, file='CART_classifier_model.pkl')
+        CART_classifier_modell = CART_classifier.load('CART_classifier_model.pkl')
+        CART_classifier.testing(CART_classifier_model, 'datasets/data_800v/env_vital_signals.txt')
+        CART_classifier_model = CART_classifier.load('CART_classifier_model.pkl')
+        
+        '''
         regressor_model = regressor.training(file='datasets/data_4000v/env_vital_signals.txt')
         regressor.save(regressor_model, file='regressor_model.pkl')
         regressor_model = regressor.load('regressor_model.pkl')
         regressor.testing(regressor_model, 'datasets/data_800v/env_vital_signals.txt')
-        regressor_model = classifier.load('regressor_model.pkl')
+        regressor_model = regressor.load('regressor_model.pkl')
+        
+        '''
+        CART_regressor_model = CART_regressor.training(file='datasets/data_4000v/env_vital_signals.txt')
+        CART_regressor.save(CART_regressor_model, file='CART_regressor_model.pkl')
+        CART_regressor_model = CART_regressor.load('CART_regressor_model.pkl')
+        CART_regressor.testing(CART_regressor_model, 'datasets/data_800v/env_vital_signals.txt')
+        CART_regressor_model = CART_regressor.load('CART_regressor_model.pkl')
+        
 
         dataframe = pd.DataFrame([victim[1][-3:] for _, victim in self.victims.items()])
-        dataframe.columns = [['qPA', 'pulso', 'freqResp']]
+        dataframe.columns = [['qpa', 'pulse', 'freq']]
 
-        classification = classifier.predict(classifier_model, dataframe)
-        regression = regressor.predict(regressor_model, dataframe)
+        classification = CART_classifier.predict(CART_classifier_model, dataframe)
+        #regression = regressor.predict(regressor_model, dataframe)
 
-        print(classification)
-        print(regression)
-        
+        #classification = classifier.predict(classifier_model, dataframe)
+        regression = CART_regressor.predict(CART_regressor_model, dataframe)
+
         index = 0
         for vic_id, values in self.victims.items():
-            print(vic_id, classification[index], regression[index])
+            print(vic_id, classification[index], f"{regression[index]:.1f}")
             severity_value = regression[index]
             severity_class = classification[index]
             index += 1
@@ -201,11 +220,9 @@ class Rescuer(AbstAgent):
             print(f"{self.NAME} all maps received from the explorers")
             #self.map.draw()
             #print(f"{self.NAME} found victims by all explorers:\n{self.victims}")
-
-            #@TODO predict the severity and the class of victims' using a classifier
+    
             self.predict_severity_and_class()
 
-            #@TODO cluster the victims possibly using the severity and other criteria
             # Here, there 4 clusters
             clusters_of_vic = self.cluster_victims()
 

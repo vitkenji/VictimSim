@@ -57,6 +57,7 @@ class Explorer(AbstAgent):
         if rotate != 0:
             possible_actions = possible_actions[rotate:] + possible_actions[:rotate]
 
+        print([i for i in possible_actions if i is not None])
         return [i for i in possible_actions if i is not None]
 
 
@@ -239,7 +240,6 @@ class Explorer(AbstAgent):
     def deliberate(self) -> bool:
 
         return_time = (abs(self.x) + abs(self.y))*6.5
-        print(self.get_rtime(), return_time, self.finish)
         
         # keeps exploring while there is enough time
         if self.get_rtime() > return_time and not self.finish:
@@ -253,7 +253,7 @@ class Explorer(AbstAgent):
             # finishes the execution of this agent
             return False
 
-        print('come back')
+        # print('come back')
         self.come_back()
             
         return True
@@ -301,9 +301,9 @@ class Explorer(AbstAgent):
         if plan:
             for next_pos in plan:
                 cost += 2
-            return cost
+            return cost, plan
         else:
-            return (abs(self.x) + abs(self.y))*7 
+            return (abs(self.x) + abs(self.y))*7, None
     
     
 
