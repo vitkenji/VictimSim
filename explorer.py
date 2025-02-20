@@ -57,7 +57,6 @@ class Explorer(AbstAgent):
         if rotate != 0:
             possible_actions = possible_actions[rotate:] + possible_actions[:rotate]
 
-        print([i for i in possible_actions if i is not None])
         return [i for i in possible_actions if i is not None]
 
 

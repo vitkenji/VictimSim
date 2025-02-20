@@ -1,3 +1,4 @@
+import threading
 import os
 import random
 import math
@@ -17,6 +18,7 @@ import CART_classifier
 import regressor
 import pandas as pd
 import CART_regressor
+from AlgoritmoGenetico import algoritmo_genetico
 
 class Rescuer(AbstAgent):
     def __init__(self, env, config_file, nb_of_explorers=1,clusters=[]):
@@ -37,6 +39,7 @@ class Rescuer(AbstAgent):
         self.y = 0
         self.clusters = clusters
         self.sequences = clusters
+        self.resultado = []
 
         #model = training(file='datasets/data_4000v/env_vital_signals.txt')
         #save(model, file='neural_network_model.pkl')
@@ -58,10 +61,10 @@ class Rescuer(AbstAgent):
         filename = f"./clusters/seq{sequence_id}.txt"
         with open(filename, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            for id, values in sequence.items():
-                x, y = values[0]
-                vs = values[1]
-                writer.writerow([id, x, y, vs[6], vs[7]])
+            for values in sequence:
+                id = values[0]
+                x, y = values[1], values[2]
+                writer.writerow([id, x, y, values[3], values[4]])
 
     def cluster_victims(self):
         cluster0 = {}
@@ -138,67 +141,16 @@ class Rescuer(AbstAgent):
             values[1].extend([severity_value, severity_class])
     
     def sequencing(self):
-        new_sequences = []
-
-        for seq in self.sequences:   # a list of sequences, being each sequence a dictionary
-            seq = dict(sorted(seq.items(), key=lambda item: item[1]))
-            new_sequences.append(seq)
-            #print(f"{self.NAME} sequence of visit:\n{seq}\n")
-
-        self.sequences = new_sequences
+        vitimas = []
+        new_sequency = []
+        for keys, values in self.clusters[0].items():
+            vitimas.append((keys, values[0][0], values[0][1], values[1][6], values[1][7]))
+        new_sequency, self.resultado = algoritmo_genetico(self.map, vitimas, self.COST_LINE, self.COST_DIAG, self.TLIM)
+        return new_sequency[1:-1]
 
     def planner(self):
 
-        posicaoAtual = (0, 0)
-        trajetoria = []
-        posicoesVitimas = dict(self.sequences[0])
-        temEnergiaSuficiente = True
-        tempoTotal = self.TLIM
-
-        while len(posicoesVitimas) != 0 and temEnergiaSuficiente:
-            vitimaSelecionada, caminhoVitimaSelecionada, menorCusto = self.calculaVitimaMenorEnergia(posicoesVitimas, posicaoAtual)
-            caminhoVolta, custoVolta = LRTAStar(self.map, posicoesVitimas[vitimaSelecionada][0], (0, 0),
-                                                self.COST_LINE, self.COST_DIAG)
-            custoTotal = menorCusto + custoVolta + self.COST_FIRST_AID
-            if (tempoTotal > custoTotal):
-                    tempoTotal -= menorCusto + self.COST_FIRST_AID
-                    trajetoria += caminhoVitimaSelecionada
-                    posicaoAtual = posicoesVitimas[vitimaSelecionada][0]
-                    del posicoesVitimas[vitimaSelecionada]
-            else:
-                if posicaoAtual != (0, 0,):
-                    caminho, custo = LRTAStar(self.map, posicaoAtual, (0, 0), self.COST_LINE, self.COST_DIAG)
-                    trajetoria += caminho
-                temEnergiaSuficiente = False
-
-        if (temEnergiaSuficiente and posicaoAtual != (0,0,)):
-            caminho, custo = LRTAStar(self.map, posicaoAtual, (0, 0), self.COST_LINE, self.COST_DIAG)
-            trajetoria += caminho
-        self.plan = convert_path_to_actions(trajetoria)
-        pass
-
-    def calculaVitimaMenorEnergia(self, vitimas, posicaoAtual):
-        vitimaSelecionada = None
-        caminhoVitimaSelecionada = []
-        menorCusto = float('inf')
-
-        with ThreadPoolExecutor(max_workers=20) as executor:
-            futuras = {executor.submit(self.calculaCustoEnegia, posicaoVitima, posicaoAtual): numVitima
-                       for numVitima, posicaoVitima in vitimas.items()}
-
-            for futura in futuras:
-                resultado = futura.result()
-                caminho, custo = resultado
-
-                if custo < menorCusto:
-                    vitimaSelecionada = futuras[futura]
-                    caminhoVitimaSelecionada = caminho
-                    menorCusto = custo
-
-        return vitimaSelecionada, caminhoVitimaSelecionada, menorCusto
-
-    def calculaCustoEnegia(self, posicaoVitima, posicaoAtual):
-        return LRTAStar(self.map, posicaoAtual, posicaoVitima[0], self.COST_LINE, self.COST_DIAG)
+        self.plan = convert_path_to_actions(self.resultado)
 
     def sync_explorers(self, explorer_map, victims):
         """ This method should be invoked only to the master agent
@@ -248,21 +200,26 @@ class Rescuer(AbstAgent):
             
             # Calculate the sequence of rescue for each agent
             # In this case, each agent has just one cluster and one sequence
-            self.sequences = self.clusters         
+            self.sequences = self.clusters
 
-            # For each rescuer, we calculate the rescue sequence 
+            threads = []
             for i, rescuer in enumerate(rescuers):
-                rescuer.sequencing()         # the sequencing will reorder the cluster
-                
-                for j, sequence in enumerate(rescuer.sequences):
-                    if j == 0:
-                        self.save_sequence_csv(sequence, i+1)              # primeira sequencia do 1o. cluster 1: seq1 
-                    else:
-                        self.save_sequence_csv(sequence, (i+1)+ j*10)      # demais sequencias do 1o. cluster: seq11, seq12, seq13, ...
+                thread = threading.Thread(target=self.process_rescuer, args=(rescuer, i))
+                threads.append(thread)
+                thread.start()
 
-            
-                rescuer.planner()            # make the plan for the trajectory
-                rescuer.set_state(VS.ACTIVE) # from now, the simulator calls the deliberation method 
+            # Aguarda todas as threads terminarem
+            for thread in threads:
+                thread.join()
+
+
+    def process_rescuer(self, rescuer, i):
+        sequence = rescuer.sequencing()  # the sequencing will reorder the cluster
+
+        self.save_sequence_csv(sequence, i + 1)  # primeira sequencia do 1o. cluster 1: seq1
+
+        rescuer.planner()  # make the plan for the trajectory
+        rescuer.set_state(VS.ACTIVE)  # from
          
         
     def deliberate(self) -> bool:
@@ -301,4 +258,12 @@ class Rescuer(AbstAgent):
             print(f"{self.NAME} Plan fail - walk error - agent at ({self.x}, {self.x})")
             
         return True
+    
+    def convert_path_to_actions(caminho):
+        actions = []
+        for i in range(1, len(caminho)):
+            dx = caminho[i][0] - caminho[i - 1][0]
+            dy = caminho[i][1] - caminho[i - 1][1]
+            actions.append((dx, dy))
+        return actions
 
