@@ -1,20 +1,37 @@
+# EXPLORER AGENT
+# @Author: Tacla, UTFPR
+#
+### It walks randomly in the environment looking for victims. When half of the
+### exploration has gone, the explorer goes back to the base.
+
 import sys
 import os
 import random
 import math
 from abc import ABC, abstractmethod
-from vs.abstract_agent import AbstAgent, PriorityQueue, Stack
+from vs.abstract_agent import AbstAgent
 from vs.constants import VS
 from map import Map
-import heapq
-import time
-from collections import deque
+
+class Stack:
+    def __init__(self):
+        self.items = []
+
+    def push(self, item):
+        self.items.append(item)
+
+    def pop(self):
+        if not self.is_empty():
+            return self.items.pop()
+
+    def is_empty(self):
+        return len(self.items) == 0
 
 class Explorer(AbstAgent):
     """ class attribute """
     MAX_DIFFICULTY = 1             # the maximum degree of difficulty to enter into a cell
     
-    def __init__(self, env, config_file, resc, direction=0):
+    def __init__(self, env, config_file, resc):
         """ Construtor do agente random on-line
         @param env: a reference to the environment 
         @param config_file: the absolute path to the explorer's config file
@@ -22,6 +39,8 @@ class Explorer(AbstAgent):
         """
 
         super().__init__(env, config_file)
+        self.walk_stack = Stack()  # a stack to store the movements
+        self.walk_time = 0         # time consumed to walk when exploring (to decide when to come back)
         self.set_state(VS.ACTIVE)  # explorer is active since the begin
         self.resc = resc           # reference to the rescuer agent
         self.x = 0                 # current x position relative to the origin 0
@@ -29,115 +48,28 @@ class Explorer(AbstAgent):
         self.map = Map()           # create a map for representing the environment
         self.victims = {}          # a dictionary of found victims: (seq): ((x,y), [<vs>])
                                    # the key is the seq number of the victim,(x,y) the position, <vs> the list of vital signals
-        self.finish = False
+
         # put the current position - the base - in the map
         self.map.add((self.x, self.y), 1, VS.NO_VICTIM, self.check_walls_and_lim())
 
-        self.stack = Stack()
-        self.direction = direction
-        self.cells_known = {(0,0): {"visited": True, "difficulty" : 1, "cost_to_base": 0}}
-    
-    def __get_current_pos(self) -> tuple:
-        return (self.x, self.y)
-    
-
-    def actions(self) -> tuple:
+    def get_next_position(self):
+        """ Randomically, gets the next position that can be explored (no wall and inside the grid)
+            There must be at least one CLEAR position in the neighborhood, otherwise it loops forever.
+        """
+        # Check the neighborhood walls and grid limits
         obstacles = self.check_walls_and_lim()
-
-        possible_actions = []
+    
+        # Loop until a CLEAR position is found
+        while True:
+            # Get a random direction
+            direction = random.randint(0, 7)
+            # Check if the corresponding position in walls_and_lim is CLEAR
+            if obstacles[direction] == VS.CLEAR:
+                return Explorer.AC_INCR[direction]
         
-        for i, obstacle in enumerate(obstacles):
-            if obstacle == VS.CLEAR:
-                action = Explorer.AC_INCR[i]
-                possible_actions.append(action)
-            else:
-                possible_actions.append(None)
-
-        rotate = self.direction
-        if rotate != 0:
-            possible_actions = possible_actions[rotate:] + possible_actions[:rotate]
-
-        return [i for i in possible_actions if i is not None]
-
-
-    def online_dfs(self):
-        possible_actions = self.actions()
-
-        current_pos = self.__get_current_pos()
-
-        next_action = None
-
-        for action in possible_actions:
-
-            next_position = (current_pos[0] + action[0], current_pos[1] + action[1])
-            
-            if next_position not in self.cells_known.keys():
-                self.cells_known[next_position] = {"visited": False, "difficulty" : None, "cost_to_base": None}
-
-            if self.cells_known[next_position]["visited"] == False and not next_action:
-                next_action = action
-
-        if not next_action:
-            return 0,0
-        
-        return next_action
-
-
-    def backtracking(self):
-        visited_locations = [key for key, value in self.cells_known.items() if value["visited"] == True]
-
-        possible_goals = []
-        for pos in visited_locations:
-            if len(self.get_adjacents_unvisited(pos)) > 0:
-                possible_goals.append(pos)
-
-        min_cost = None
-        best_path = None
-
-        index = 0
-        loc_range = 10 if len(possible_goals) > 10 else len(possible_goals)
-
-        possible_goals = possible_goals[::-1]
-
-        while not best_path and len(possible_goals) >= index + loc_range:
-
-            for goal in possible_goals[index:index+loc_range]:
-                path, cost = self.a_star_search(self.__get_current_pos(), goal)
-                if path == [] or cost == -1:
-                    pass
-                elif min_cost is None or cost < min_cost:
-                    min_cost = cost
-                    best_path = path
-
-            index += loc_range
-            if loc_range + index > len(possible_goals):
-                loc_range = len(possible_goals) - index 
-
-        if not best_path:
-            return
-        
-        last_step = best_path[-1]
-        for step in reversed(best_path[:-1]):
-            delta_step = (step[0]-last_step[0], step[1]-last_step[1])
-            self.stack.push(delta_step)
-            last_step = step
-        self.stack.items.reverse()
-
-    def heuristics(self, x, y):
-        return math.sqrt(x**2 + y**2)
-
-    def explore(self):  
-        if not self.stack.is_empty():
-            dx, dy = self.stack.pop()
-        else:
-            dx, dy = self.online_dfs()
-        
-        if dx == dy == 0:
-            self.backtracking()
-            if not self.stack.is_empty():
-                dx, dy = self.stack.pop()
-            else:
-                dx, dy = 0, 0
+    def explore(self):
+        # get an random increment for x and y       
+        dx, dy = self.get_next_position()
 
         # Moves the body to another position  
         rtime_bef = self.get_rtime()
@@ -153,12 +85,17 @@ class Explorer(AbstAgent):
             #print(f"{self.NAME}: Wall or grid limit reached at ({self.x + dx}, {self.y + dy})")
 
         if result == VS.EXECUTED:
+            # check for victim returns -1 if there is no victim or the sequential
+            # the sequential number of a found victim
+            self.walk_stack.push((dx, dy))
 
             # update the agent's position relative to the origin
             self.x += dx
             self.y += dy
 
-            self.cells_known[self.__get_current_pos()]["visited"] = True
+            # update the walk time
+            self.walk_time = self.walk_time + (rtime_bef - rtime_aft)
+            #print(f"{self.NAME} walk time: {self.walk_time}")
 
             # Check for victims
             seq = self.check_for_victim()
@@ -175,8 +112,6 @@ class Explorer(AbstAgent):
             else:
                 difficulty = difficulty / self.COST_DIAG
 
-            self.cells_known[self.__get_current_pos()]["difficulty"] = difficulty
-
             # Update the map with the new cell
             self.map.add((self.x, self.y), difficulty, seq, self.check_walls_and_lim())
             #print(f"{self.NAME}:at ({self.x}, {self.y}), diffic: {difficulty:.2f} vict: {seq} rtime: {self.get_rtime()}")
@@ -184,125 +119,42 @@ class Explorer(AbstAgent):
         return
 
     def come_back(self):
-        obstacles = self.check_walls_and_lim()
-        
-        plan = deque()
-        
-        priority_queue = []
-        heapq.heappush(priority_queue, (self.heuristics(self.x, self.y), 0, (self.x, self.y)))
-        visited = set()
-        parent_map = { (self.x, self.y): None }
-        
-        while priority_queue:
-            f, g, node = heapq.heappop(priority_queue)
-            
-            if node == (0, 0):
-                current = node
-                while current != (self.x, self.y):
-                    parent = parent_map[current]
-                    plan.appendleft(current)
-                    current = parent
-                self.finish = True
-                break
-            
-            if node in visited:
-                continue
-            
-            visited.add(node)
-            
-            for neighbor in range(8):
-                next_x = node[0] + Explorer.AC_INCR[neighbor][0]
-                next_y = node[1] + Explorer.AC_INCR[neighbor][1]
-                next_coord = (next_x, next_y)
+        dx, dy = self.walk_stack.pop()
+        dx = dx * -1
+        dy = dy * -1
 
-                if next_coord not in visited and obstacles[neighbor] == VS.CLEAR:
-                    g_node = 1 if neighbor % 2 == 0 else 1.5
-                    new_g = g + g_node
-                    f_node = new_g + self.heuristics(next_x, next_y)
-                    
-                    parent_map[next_coord] = node
-                    
-                    heapq.heappush(priority_queue, (f_node, new_g, next_coord))
-
-        if plan:
-            for next_pos in plan:
-                dx, dy = next_pos[0] - self.x, next_pos[1] - self.y
-                
-                result = self.walk(dx, dy)
-                
-                if result == VS.EXECUTED:
-                    self.x += dx
-                    self.y += dy
-
-        return
-            
+        result = self.walk(dx, dy)
+        if result == VS.BUMPED:
+            print(f"{self.NAME}: when coming back bumped at ({self.x+dx}, {self.y+dy}) , rtime: {self.get_rtime()}")
+            return
+        
+        if result == VS.EXECUTED:
+            # update the agent's position relative to the origin
+            self.x += dx
+            self.y += dy
+            #print(f"{self.NAME}: coming back at ({self.x}, {self.y}), rtime: {self.get_rtime()}")
+        
     def deliberate(self) -> bool:
+        """ The agent chooses the next action. The simulator calls this
+        method at each cycle. Must be implemented in every agent"""
 
-        return_time = (abs(self.x) + abs(self.y))*6.5
-        
+        # forth and back: go, read the vital signals and come back to the position
+
+        time_tolerance = 2* self.COST_DIAG * Explorer.MAX_DIFFICULTY + self.COST_READ
+
         # keeps exploring while there is enough time
-        if self.get_rtime() > return_time and not self.finish:
+        if  self.walk_time < (self.get_rtime() - time_tolerance):
             self.explore()
             return True
 
         # no more come back walk actions to execute or already at base
-        if (self.x == 0 and self.y == 0):
+        if self.walk_stack.is_empty() or (self.x == 0 and self.y == 0):
             # time to pass the map and found victims to the master rescuer
             self.resc.sync_explorers(self.map, self.victims)
             # finishes the execution of this agent
             return False
-
-        # print('come back')
+        
+        # proceed to the base
         self.come_back()
-            
         return True
-    
-    def cost_plan(self):
-        obstacles = self.check_walls_and_lim()
-        
-        plan = deque()
-        
-        priority_queue = []
-        heapq.heappush(priority_queue, (self.heuristics(self.x, self.y), 0, (self.x, self.y)))
-        visited = set()
-        parent_map = { (self.x, self.y): None }
-        
-        while priority_queue:
-            f, g, node = heapq.heappop(priority_queue)
-            
-            if node == (0, 0):
-                current = node
-                while current != (self.x, self.y):
-                    parent = parent_map[current]
-                    plan.appendleft(current)
-                    current = parent
-                break
-            
-            if node in visited:
-                continue
-            
-            visited.add(node)
-            
-            for neighbor in range(8):
-                next_x = node[0] + Explorer.AC_INCR[neighbor][0]
-                next_y = node[1] + Explorer.AC_INCR[neighbor][1]
-                next_coord = (next_x, next_y)
-
-                if next_coord not in visited and obstacles[neighbor] == VS.CLEAR:
-                    g_node = 1 if neighbor % 2 == 0 else 1.5
-                    new_g = g + g_node
-                    f_node = new_g + self.heuristics(next_x, next_y)
-                    
-                    parent_map[next_coord] = node
-                    
-                    heapq.heappush(priority_queue, (f_node, new_g, next_coord))
-        cost = 0
-        if plan:
-            for next_pos in plan:
-                cost += 2
-            return cost, plan
-        else:
-            return (abs(self.x) + abs(self.y))*7, None
-    
-    
 
