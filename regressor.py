@@ -1,6 +1,5 @@
 import pandas as pd
 from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.metrics import mean_squared_error, r2_score
 import joblib
 from sklearn.metrics import classification_report, accuracy_score  
 from sklearn.metrics import mean_squared_error, r2_score
@@ -8,7 +7,7 @@ import numpy as np
 from sklearn.neural_network import MLPRegressor
 
 def training(file):
-    dataframe = pd.DataFrame(pd.read_csv(file))
+    dataframe = pd.read_csv(file)
 
     x_train = dataframe[['qpa', 'pulse', 'freq']]
     y_train = dataframe['gravity']

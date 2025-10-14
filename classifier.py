@@ -9,7 +9,7 @@ from keras.layers import LeakyReLU
 from keras.layers import ELU
 
 def training(file):
-    dataframe = pd.DataFrame(pd.read_csv(file))
+    dataframe = pd.read_csv(file)
     x_train = dataframe[['qpa','pulse','freq']]
     y_train = dataframe['output']
     y_train = y_train - 1  
