@@ -3,6 +3,8 @@ import random
 import math
 import csv
 import sys
+import joblib
+import numpy as np
 from map import Map
 from vs.abstract_agent import AbstAgent
 from vs.physical_agent import PhysAgent
@@ -10,23 +12,24 @@ from vs.constants import VS
 from bfs import BFS
 from abc import ABC, abstractmethod
 
-class Rescuer(AbstAgent):
-        super().__init__(env, config_file)
 
-        self.nb_of_explorers = nb_of_explorers       # number of explorer agents to wait for start
-        self.received_maps = 0                       # counts the number of explorers' maps
-        self.map = Map()                             # explorer will pass the map
-        self.victims = {}            # a dictionary of found victims: [vic_id]: ((x,y), [<vs>])
-        self.plan = []               # a list of planned actions in increments of x and y
-        self.plan_x = 0              # the x position of the rescuer during the planning phase
-        self.plan_y = 0              # the y position of the rescuer during the planning phase
-        self.plan_visited = set()    # positions already planned to be visited 
-        self.plan_rtime = self.TLIM  # the remaing time during the planning phase
-        self.plan_walk_time = 0.0    # previewed time to walk during rescue
-        self.x = 0                   # the current x position of the rescuer when executing the plan
-        self.y = 0                   # the current y position of the rescuer when executing the plan
-        self.clusters = clusters     # the clusters of victims this agent should take care of - see the method cluster_victims
-        self.sequences = clusters    # the sequence of visit of victims for each cluster 
+class Rescuer(AbstAgent):
+    def __init__(self, env, config_file, nb_of_explorers=1,clusters=[]):
+        super().__init__(env, config_file)
+        self.nb_of_explorers = nb_of_explorers      
+        self.received_maps = 0                     
+        self.map = Map()                             
+        self.victims = {}         
+        self.plan = []               
+        self.plan_x = 0            
+        self.plan_y = 0              
+        self.plan_visited = set()    
+        self.plan_rtime = self.TLIM 
+        self.plan_walk_time = 0.0   
+        self.x = 0               
+        self.y = 0                  
+        self.clusters = clusters   
+        self.sequences = clusters     
         
         self.set_state(VS.IDLE)
 
@@ -100,16 +103,11 @@ class Rescuer(AbstAgent):
         return [upper_left, upper_right, lower_left, lower_right]
 
     def predict_severity_and_class(self):
-        """ @TODO to be replaced by a classifier and a regressor to calculate the class of severity and the severity values.
-            This method should add the vital signals(vs) of the self.victims dictionary with these two values.
-
-            This implementation assigns random values to both, severity value and class"""
-
+        classifier = joblib.load('./models/classifier.pkl')
+        regressor = joblib.load('./models/regressor.pkl')
         for vic_id, values in self.victims.items():
-            severity_value = random.uniform(0.1, 99.9)          # to be replaced by a regressor 
-            severity_class = random.randint(1, 4)               # to be replaced by a classifier
-            values[1].extend([severity_value, severity_class])  # append to the list of vital signals; values is a pair( (x,y), [<vital signals list>] )
-
+            values[1].extend([regressor.predict([values[1][1:]])[0].item(), classifier.predict([values[1][1:]])[0].item()])
+            print(values)
 
     def sequencing(self):
         """ Currently, this method sort the victims by the x coordinate followed by the y coordinate
