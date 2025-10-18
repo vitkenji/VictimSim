@@ -27,7 +27,7 @@ class Explorer(AbstAgent):
     def __init__(self, env, config_file, resc):
 
         super().__init__(env, config_file)
-        self.walk_stack = Stack()  # a stack to store the movements
+        self.walk_stack = Stack()  
         self.walk_time = 0         # time consumed to walk when exploring (to decide when to come back)
         self.set_state(VS.ACTIVE)  # explorer is active since the begin
         self.resc = resc           # reference to the rescuer agent
@@ -117,12 +117,10 @@ class Explorer(AbstAgent):
             #print(f"{self.NAME}: coming back at ({self.x}, {self.y}), rtime: {self.get_rtime()}")
         
     def deliberate(self) -> bool:
-        """ The agent chooses the next action. The simulator calls this
-        method at each cycle. Must be implemented in every agent"""
+        print(self.map.data)
 
-        # forth and back: go, read the vital signals and come back to the position
-
-        time_tolerance = 2* self.COST_DIAG * Explorer.MAX_DIFFICULTY + self.COST_READ
+        time_tolerance = 2* self.COST_DIAG
+        # Loop until a CLEAR position is found * Explorer.MAX_DIFFICULTY + self.COST_READ
 
         # keeps exploring while there is enough time
         if  self.walk_time < (self.get_rtime() - time_tolerance):

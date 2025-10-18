@@ -23,7 +23,6 @@ class Map:
     def get_actions_results(self, coord):
         return self.data.get(coord)[2]
 
-        
     def add(self, coord, difficulty, vic_id, actions_res):
         self.data[coord] = (difficulty, vic_id, actions_res)
 

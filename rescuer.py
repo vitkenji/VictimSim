@@ -58,10 +58,10 @@ class Rescuer(AbstAgent):
         kmeans = KMeans(n_clusters=4, random_state=0)
         labels = kmeans.fit_predict(coordinates)
         
-        plt.scatter(coordinates[:, 0], coordinates[:, 1], c=labels, cmap='viridis', s=50)
-        plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], c='red', s=200, marker='X', label='Centros')
-        plt.grid(True)
-        plt.show()
+        #plt.scatter(coordinates[:, 0], coordinates[:, 1], c=labels, cmap='viridis', s=50)
+        #plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1], c='red', s=200, marker='X', label='Centros')
+        #plt.grid(True)
+        #plt.show()
 
         clusters = [{},{},{},{}]
         for v_id, label in zip(list(self.victims.keys()), labels):
