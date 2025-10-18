@@ -1,9 +1,3 @@
-# EXPLORER AGENT
-# @Author: Tacla, UTFPR
-#
-### It walks randomly in the environment looking for victims. When half of the
-### exploration has gone, the explorer goes back to the base.
-
 import sys
 import os
 import random
@@ -28,15 +22,9 @@ class Stack:
         return len(self.items) == 0
 
 class Explorer(AbstAgent):
-    """ class attribute """
-    MAX_DIFFICULTY = 1             # the maximum degree of difficulty to enter into a cell
+    MAX_DIFFICULTY = 1     
     
     def __init__(self, env, config_file, resc):
-        """ Construtor do agente random on-line
-        @param env: a reference to the environment 
-        @param config_file: the absolute path to the explorer's config file
-        @param resc: a reference to the rescuer agent to invoke when exploration finishes
-        """
 
         super().__init__(env, config_file)
         self.walk_stack = Stack()  # a stack to store the movements
@@ -53,17 +41,11 @@ class Explorer(AbstAgent):
         self.map.add((self.x, self.y), 1, VS.NO_VICTIM, self.check_walls_and_lim())
 
     def get_next_position(self):
-        """ Randomically, gets the next position that can be explored (no wall and inside the grid)
-            There must be at least one CLEAR position in the neighborhood, otherwise it loops forever.
-        """
-        # Check the neighborhood walls and grid limits
+        
         obstacles = self.check_walls_and_lim()
     
-        # Loop until a CLEAR position is found
         while True:
-            # Get a random direction
             direction = random.randint(0, 7)
-            # Check if the corresponding position in walls_and_lim is CLEAR
             if obstacles[direction] == VS.CLEAR:
                 return Explorer.AC_INCR[direction]
         
