@@ -10,7 +10,7 @@ class AbstAgent(ABC):
         2: (1, 0),   #  r: Right
         3: (1, 1),   # dr: Down right diagonal
         4: (0, 1),   #  d: Down
-        5: (-1, 1),  # dl: Down left left diagonal
+        5: (-1, 1),  # dl: Down left diagonal
         6: (-1, 0),  #  l: Left
         7: (-1, -1)  # ul: Up left diagonal
     }

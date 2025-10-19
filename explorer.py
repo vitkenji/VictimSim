@@ -6,20 +6,8 @@ from abc import ABC, abstractmethod
 from vs.abstract_agent import AbstAgent
 from vs.constants import VS
 from map import Map
-
-class Stack:
-    def __init__(self):
-        self.items = []
-
-    def push(self, item):
-        self.items.append(item)
-
-    def pop(self):
-        if not self.is_empty():
-            return self.items.pop()
-
-    def is_empty(self):
-        return len(self.items) == 0
+from a_star import a_star, a_star_plan_cost
+import time
 
 class Explorer(AbstAgent):
     MAX_DIFFICULTY = 1     
@@ -27,13 +15,15 @@ class Explorer(AbstAgent):
     def __init__(self, env, config_file, resc):
 
         super().__init__(env, config_file)
-        self.walk_stack = Stack()  
         self.walk_time = 0         # time consumed to walk when exploring (to decide when to come back)
         self.set_state(VS.ACTIVE)  # explorer is active since the begin
         self.resc = resc           # reference to the rescuer agent
         self.x = 0                 # current x position relative to the origin 0
         self.y = 0                 # current y position relative to the origin 0
-        self.map = Map()           # create a map for representing the environment
+        self.come_back_plan = []
+        self.time_come_back = 0
+        self.map = Map()  
+        self.returning = 0         # create a map for representing the environment
         self.victims = {}          # a dictionary of found victims: (seq): ((x,y), [<vs>])
                                    # the key is the seq number of the victim,(x,y) the position, <vs> the list of vital signals
 
@@ -58,7 +48,6 @@ class Explorer(AbstAgent):
         result = self.walk(dx, dy)
         rtime_aft = self.get_rtime()
 
-
         # Test the result of the walk action
         # Should never bump, but for safe functionning let's test
         if result == VS.BUMPED:
@@ -69,7 +58,6 @@ class Explorer(AbstAgent):
         if result == VS.EXECUTED:
             # check for victim returns -1 if there is no victim or the sequential
             # the sequential number of a found victim
-            self.walk_stack.push((dx, dy))
 
             # update the agent's position relative to the origin
             self.x += dx
@@ -98,12 +86,18 @@ class Explorer(AbstAgent):
             self.map.add((self.x, self.y), difficulty, seq, self.check_walls_and_lim())
             #print(f"{self.NAME}:at ({self.x}, {self.y}), diffic: {difficulty:.2f} vict: {seq} rtime: {self.get_rtime()}")
 
+            self.come_back_plan = a_star(list(self.map.data.keys()),(self.x, self.y),(0,0)) 
+            self.time_come_back = a_star_plan_cost(self.come_back_plan)
+
         return
 
     def come_back(self):
-        dx, dy = self.walk_stack.pop()
-        dx = dx * -1
-        dy = dy * -1
+        print(f"currently in: ({self.x}, {self.y}()")
+        print(self.get_rtime())
+        
+        x1,y1 = self.come_back_plan.pop(0) 
+        dx = x1 - self.x
+        dy = y1 - self.y
 
         result = self.walk(dx, dy)
         if result == VS.BUMPED:
@@ -111,30 +105,26 @@ class Explorer(AbstAgent):
             return
         
         if result == VS.EXECUTED:
-            # update the agent's position relative to the origin
             self.x += dx
             self.y += dy
             #print(f"{self.NAME}: coming back at ({self.x}, {self.y}), rtime: {self.get_rtime()}")
         
     def deliberate(self) -> bool:
-        print(self.map.data)
-
-        time_tolerance = 2* self.COST_DIAG
-        # Loop until a CLEAR position is found * Explorer.MAX_DIFFICULTY + self.COST_READ
-
         # keeps exploring while there is enough time
-        if  self.walk_time < (self.get_rtime() - time_tolerance):
+        if self.get_rtime() >= self.time_come_back + 10:
             self.explore()
             return True
 
         # no more come back walk actions to execute or already at base
-        if self.walk_stack.is_empty() or (self.x == 0 and self.y == 0):
+        if self.x == 0 and self.y == 0:
             # time to pass the map and found victims to the master rescuer
             self.resc.sync_explorers(self.map, self.victims)
-            # finishes the execution of this agent
+            # finishes the exec8ution of this agent
             return False
+
+        if not self.returning:
+            self.come_back_plan = self.come_back_plan[1:]
+            self.returning = 1
         
-        # proceed to the base
         self.come_back()
         return True
-
