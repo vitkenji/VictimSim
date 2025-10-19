@@ -1,12 +1,14 @@
 import heapq
+from functools import lru_cache
+
+def a_star_2(map, start, goal):
+    return list(a_star_cached(tuple(map), start, goal))
 
 def a_star(map, start, goal):
     open = []
     closed = set()
-    g = {}
-    g[start] = 0
-    f = {}
-    f[start] = h(start, goal)
+    g = {start: 0}
+    f = {start: h(start, goal)}
     
     heapq.heappush(open, (f[start], start))
 
@@ -39,8 +41,9 @@ def a_star(map, start, goal):
                 path[neighbour] = current
                 heapq.heappush(open, (f[neighbour], neighbour))
 
-    return {}
+    return ()
 
+@lru_cache(maxsize=None)
 def h(s1, s2):
     return abs(s1[0] - s2[0]) + abs(s1[1] - s2[1])
 

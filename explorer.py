@@ -8,6 +8,7 @@ from vs.constants import VS
 from map import Map
 from a_star import a_star, a_star_plan_cost
 import time
+from collections import deque
 
 class Explorer(AbstAgent):
     MAX_DIFFICULTY = 1     
@@ -22,7 +23,8 @@ class Explorer(AbstAgent):
         self.y = 0                 # current y position relative to the origin 0
         self.come_back_plan = []
         self.time_come_back = 0
-        self.map = Map()  
+        self.map = Map()
+        self.map_keys = self.map.data.keys()  
         self.returning = 0         # create a map for representing the environment
         self.victims = {}          # a dictionary of found victims: (seq): ((x,y), [<vs>])
                                    # the key is the seq number of the victim,(x,y) the position, <vs> the list of vital signals
@@ -86,15 +88,13 @@ class Explorer(AbstAgent):
             self.map.add((self.x, self.y), difficulty, seq, self.check_walls_and_lim())
             #print(f"{self.NAME}:at ({self.x}, {self.y}), diffic: {difficulty:.2f} vict: {seq} rtime: {self.get_rtime()}")
 
-            self.come_back_plan = a_star(list(self.map.data.keys()),(self.x, self.y),(0,0)) 
-            self.time_come_back = a_star_plan_cost(self.come_back_plan)
+            if self.get_rtime() <= self.walk_time:
+                self.come_back_plan = a_star(self.map_keys,(self.x, self.y),(0,0)) 
+                self.time_come_back = a_star_plan_cost(self.come_back_plan)
 
         return
 
     def come_back(self):
-        print(f"currently in: ({self.x}, {self.y}()")
-        print(self.get_rtime())
-        
         x1,y1 = self.come_back_plan.pop(0) 
         dx = x1 - self.x
         dy = y1 - self.y
@@ -111,7 +111,7 @@ class Explorer(AbstAgent):
         
     def deliberate(self) -> bool:
         # keeps exploring while there is enough time
-        if self.get_rtime() >= self.time_come_back + 10:
+        if self.get_rtime() >= self.time_come_back * 1.4:
             self.explore()
             return True
 
@@ -123,6 +123,7 @@ class Explorer(AbstAgent):
             return False
 
         if not self.returning:
+            print(self.time_come_back)
             self.come_back_plan = self.come_back_plan[1:]
             self.returning = 1
         
