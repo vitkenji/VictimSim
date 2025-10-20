@@ -1,46 +1,41 @@
 import heapq
 from functools import lru_cache
 
-def a_star_2(map, start, goal):
-    return list(a_star_cached(tuple(map), start, goal))
-
 def a_star(map, start, goal):
-    open = []
+    open_heap = []
+    open_set = {start}
     closed = set()
     g = {start: 0}
     f = {start: h(start, goal)}
-    
-    heapq.heappush(open, (f[start], start))
-
+    heapq.heappush(open_heap, (f[start], start))
     path = {}
 
-    while len(open) > 0:
-        f_current, current = heapq.heappop(open)
+    while open_heap:
+        f_current, current = heapq.heappop(open_heap)
         
+        if current in closed:
+            continue
+
         if current == goal:
             return build_path(path, current)
 
         closed.add(current)
-        
-        neighbourhood = neighbours(current, map)
-        for neighbour in neighbourhood:
+        open_set.discard(current)
+
+        for neighbour in neighbours(current, map):
             if neighbour in closed:
                 continue
             
             g_ = g[current] + distance(current, neighbour)
 
-            if neighbour not in g:
+            if neighbour not in g or g_ < g[neighbour]:
                 g[neighbour] = g_
                 f[neighbour] = g[neighbour] + h(neighbour, goal)
                 path[neighbour] = current
-                heapq.heappush(open, (f[neighbour], neighbour))
 
-            elif g_ <= g[neighbour]:
-                g[neighbour] = g_
-                f[neighbour] = g[neighbour] + h(neighbour, goal)
-                path[neighbour] = current
-                heapq.heappush(open, (f[neighbour], neighbour))
-
+                if neighbour not in open_set:
+                    heapq.heappush(open_heap, (f[neighbour], neighbour))
+                    open_set.add(neighbour)    
     return ()
 
 @lru_cache(maxsize=None)
@@ -48,22 +43,14 @@ def h(s1, s2):
     return abs(s1[0] - s2[0]) + abs(s1[1] - s2[1])
 
 def neighbours(s, map):
-    neighbourhood = []
-    x1, y1 = s
-    for cell in map:
-        x2, y2 = cell
-        if x2 >= x1 - 1 and x2 <= x1 + 1:
-            if y2 >= y1 - 1 and y2 <= y1 + 1:
-                if cell != s:
-                    neighbourhood.append(cell)
-    return neighbourhood
+    x, y = s
+    adjacent = [(x-1, y-1), (x-1, y), (x-1, y+1), (x, y-1),(x, y+1),(x+1, y-1), (x+1, y), (x+1, y+1)]
 
+    return [cell for cell in adjacent if cell in map]
+
+@lru_cache(maxsize=8)
 def distance(s1, s2):
-    x1, y1 = s1
-    x2, y2 = s2
-    if x1 == x2 or y1 == y2:
-        return 1
-    return 1.5
+    return 1 if (s1[0] == s2[0] or s1[1] == s2[1]) else 1.5
 
 def build_path(path, current):
     path_ = [current]

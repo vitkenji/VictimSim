@@ -88,7 +88,7 @@ class Explorer(AbstAgent):
             self.map.add((self.x, self.y), difficulty, seq, self.check_walls_and_lim())
             #print(f"{self.NAME}:at ({self.x}, {self.y}), diffic: {difficulty:.2f} vict: {seq} rtime: {self.get_rtime()}")
 
-            if self.get_rtime() <= self.walk_time:
+            if self.get_rtime() <= self.walk_time/2:
                 self.come_back_plan = a_star(self.map_keys,(self.x, self.y),(0,0)) 
                 self.time_come_back = a_star_plan_cost(self.come_back_plan)
 
@@ -111,7 +111,7 @@ class Explorer(AbstAgent):
         
     def deliberate(self) -> bool:
         # keeps exploring while there is enough time
-        if self.get_rtime() >= self.time_come_back * 1.4:
+        if self.get_rtime() >= self.time_come_back * 1.6:
             self.explore()
             return True
 
