@@ -8,12 +8,11 @@ from vs.constants import VS
 from map import Map
 from a_star import a_star, a_star_plan_cost
 import time
-from collections import deque
 
 class Explorer(AbstAgent):
     MAX_DIFFICULTY = 1     
     
-    def __init__(self, env, config_file, resc):
+    def __init__(self, env, config_file, resc, direction):
 
         super().__init__(env, config_file)
         self.walk_time = 0         # time consumed to walk when exploring (to decide when to come back)
@@ -23,33 +22,87 @@ class Explorer(AbstAgent):
         self.y = 0                 # current y position relative to the origin 0
         self.come_back_plan = []
         self.time_come_back = 0
+        self.favorite_direction = direction
+        self.backtrack_stack = []
+        self.backtrack_path = []
         self.map = Map()
+        self.known_cells = {(0,0) : {"visited": True}}
         self.map_keys = self.map.data.keys()  
         self.returning = 0         # create a map for representing the environment
         self.victims = {}          # a dictionary of found victims: (seq): ((x,y), [<vs>])
                                    # the key is the seq number of the victim,(x,y) the position, <vs> the list of vital signals
 
-        # put the current position - the base - in the map
         self.map.add((self.x, self.y), 1, VS.NO_VICTIM, self.check_walls_and_lim())
 
-    def get_next_position(self):
-        
+    def directions(self):
         obstacles = self.check_walls_and_lim()
-    
-        while True:
-            direction = random.randint(0, 7)
-            if obstacles[direction] == VS.CLEAR:
-                return Explorer.AC_INCR[direction]
+        obstacles = obstacles[self.favorite_direction:] + obstacles[:self.favorite_direction]
         
-    def explore(self):
-        # get an random increment for x and y       
-        dx, dy = self.get_next_position()
+        possible_directions = list(Explorer.AC_INCR.values())
+        possible_directions = possible_directions[self.favorite_direction:] + possible_directions[:self.favorite_direction]
+        
+        for i, direction in enumerate(possible_directions[:]):
+            neighbour = (self.x + direction[0], self.y + direction[1])
+            if obstacles[i] != VS.CLEAR:
+                possible_directions.remove(direction)
+            else:
+                if neighbour not in self.known_cells:
+                    self.known_cells[neighbour] = {"visited": False}
+                
+                if self.known_cells[neighbour]["visited"]:
+                    possible_directions.remove(direction)
+
+
+        if len(possible_directions) <= 0:
+            return (0,0)
+
+        return possible_directions[0]
+            
+    def verify_adjacents(self, position):
+        x, y = position
+        possible_directions = list(Explorer.AC_INCR.values())
+        possible_directions = possible_directions[self.favorite_direction:] + possible_directions[:self.favorite_direction]
+
+        for c in range(0, 8):
+            direction = Explorer.AC_INCR[c]
+            neighbour = (x + direction[0], y + direction[1])  
+            if neighbour not in self.known_cells:
+                continue                
+            if not self.known_cells[neighbour]["visited"]:
+                return neighbour                
+        return None
+
+    def backtrack(self):
+        visited_keys = [key for key in self.known_cells if self.known_cells[key].get("visited", True)]
+        while len(self.backtrack_stack) > 0:
+            goal = self.verify_adjacents(self.backtrack_stack.pop())
+            if goal != None:
+                visited_keys.append(goal)
+                return a_star(visited_keys, (self.x, self.y), goal)[1:]
+        return []
+
+    def explore(self):   
+        dx, dy = self.directions()
+        
+        if len(self.backtrack_path) > 0:
+            x1, y1 = self.backtrack_path.pop(0)
+            dx = x1 - self.x
+            dy = y1 - self.y
+
+        else:
+            dx, dy = self.directions()
+            if dx == 0 and dy == 0:
+                self.backtrack_path = self.backtrack()
+                x1, y1 = self.backtrack_path.pop(0)
+                dx = x1 - self.x
+                dy = y1 - self.y
+
 
         # Moves the body to another position  
         rtime_bef = self.get_rtime()
         result = self.walk(dx, dy)
         rtime_aft = self.get_rtime()
-
+        
         # Test the result of the walk action
         # Should never bump, but for safe functionning let's test
         if result == VS.BUMPED:
@@ -64,6 +117,13 @@ class Explorer(AbstAgent):
             # update the agent's position relative to the origin
             self.x += dx
             self.y += dy
+
+            if (self.x, self.y) not in self.known_cells:
+                self.known_cells[(self.x, self.y)] = {"visited": False}
+            
+            if not self.known_cells[(self.x, self.y)]["visited"]:
+                self.known_cells[(self.x, self.y)] = {"visited": True}
+                self.backtrack_stack.append((self.x, self.y))
 
             # update the walk time
             self.walk_time = self.walk_time + (rtime_bef - rtime_aft)
@@ -119,11 +179,10 @@ class Explorer(AbstAgent):
         if self.x == 0 and self.y == 0:
             # time to pass the map and found victims to the master rescuer
             self.resc.sync_explorers(self.map, self.victims)
-            # finishes the exec8ution of this agent
+            # finishes the execution of this agent
             return False
 
         if not self.returning:
-            print(self.time_come_back)
             self.come_back_plan = self.come_back_plan[1:]
             self.returning = 1
         

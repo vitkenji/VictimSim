@@ -21,7 +21,7 @@ def a_star(map, start, goal):
 
         closed.add(current)
         open_set.discard(current)
-
+        
         for neighbour in neighbours(current, map):
             if neighbour in closed:
                 continue
@@ -45,7 +45,6 @@ def h(s1, s2):
 def neighbours(s, map):
     x, y = s
     adjacent = [(x-1, y-1), (x-1, y), (x-1, y+1), (x, y-1),(x, y+1),(x+1, y-1), (x+1, y), (x+1, y+1)]
-
     return [cell for cell in adjacent if cell in map]
 
 @lru_cache(maxsize=8)
