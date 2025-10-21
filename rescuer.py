@@ -11,6 +11,11 @@ from bfs import BFS
 from abc import ABC, abstractmethod
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
+from a_star import a_star, a_star_plan_cost
+from genetic_algorithm import GeneticAlgorithm
+import warnings
+
+warnings.filterwarnings("ignore")
 
 class Rescuer(AbstAgent):
     def __init__(self, env, config_file, nb_of_explorers=1,clusters=[]):
@@ -72,7 +77,6 @@ class Rescuer(AbstAgent):
         regressor = joblib.load('./models/regressor.pkl')
         for vic_id, values in self.victims.items():
             values[1].extend([regressor.predict([values[1][1:]])[0].item(), classifier.predict([values[1][1:]])[0].item()])
-            print(values)
 
     def sequencing(self):
         """ Currently, this method sort the victims by the x coordinate followed by the y coordinate
@@ -84,6 +88,8 @@ class Rescuer(AbstAgent):
 
         new_sequences = []
 
+        #genetic_algorithm = GeneticAlgorithm(self.get_rtime(), self.victims)
+        #genetic_algorithm.run()
         for seq in self.sequences:   # a list of sequences, being each sequence a dictionary
             seq = dict(sorted(seq.items(), key=lambda item: item[1]))
             new_sequences.append(seq)       
@@ -142,7 +148,6 @@ class Rescuer(AbstAgent):
 
         if self.received_maps == self.nb_of_explorers:
             print(f"{self.NAME} all maps received from the explorers")
-            #self.map.draw()
             #print(f"{self.NAME} found victims by all explorers:\n{self.victims}")
 
             self.predict_severity_and_class()
@@ -167,7 +172,6 @@ class Rescuer(AbstAgent):
                 # each rescuer receives one cluster of victims
                 rescuers[i] = Rescuer(self.get_env(), config_file, 4, [clusters_of_vic[i]]) 
                 rescuers[i].map = self.map     # each rescuer have the map
-
             
             # Calculate the sequence of rescue for each agent
             # In this case, each agent has just one cluster and one sequence

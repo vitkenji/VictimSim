@@ -268,7 +268,7 @@ class Env:
                     print("\n--------------")
                     self.print_acum_results()
                     
-                input("ENV: Tecle qualquer coisa para encerrar >>")
+                input("Press anything to quit")
                 running = False
    
         pygame.quit()

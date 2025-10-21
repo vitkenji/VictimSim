@@ -134,9 +134,6 @@ class Explorer(AbstAgent):
         dy = y1 - self.y
 
         result = self.walk(dx, dy)
-        if result == VS.BUMPED:
-            print(f"{self.NAME}: when coming back bumped at ({self.x+dx}, {self.y+dy}) , rtime: {self.get_rtime()}")
-            return
         
         if result == VS.EXECUTED:
             self.x += dx
