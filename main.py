@@ -1,6 +1,5 @@
 import sys
 import os
-import time
 from vs.environment import Env
 from explorer import Explorer
 from rescuer import Rescuer

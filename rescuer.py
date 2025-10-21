@@ -1,6 +1,4 @@
 import os
-import random
-import math
 import csv
 import sys
 import joblib
@@ -147,11 +145,8 @@ class Rescuer(AbstAgent):
             #self.map.draw()
             #print(f"{self.NAME} found victims by all explorers:\n{self.victims}")
 
-            #@TODO predict the severity and the class of victims' using a classifier
             self.predict_severity_and_class()
 
-            #@TODO cluster the victims possibly using the severity and other criteria
-            # Here, there 4 clusters
             clusters_of_vic = self.cluster_victims()
 
             for i, cluster in enumerate(clusters_of_vic):
