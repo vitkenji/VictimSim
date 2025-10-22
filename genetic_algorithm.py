@@ -2,34 +2,30 @@ import random
 import numpy as np
 from copy import deepcopy
 import time
+import matplotlib.pyplot as plt
 
-GENERATIONS = 100
+GENERATIONS = 800
 MUTATION_RATE = 0.1
-POPULATION_SIZE = 50
 
 class GeneticAlgorithm:
     def __init__(self, battery, victims):
         self.victims = victims
         self.battery = battery
+        self.population_size = 50
 
     def fitness(self, sequence):
-        #if sequence != []:
-            #print(f"sequence: {len(sequence)}")
-
+        
         total_cost = 0
         total_score = 0
         current = (0,0)
-
 
         for vid in sequence:
             vx, vy = self.victims[vid][0]
             gravity = self.victims[vid][1][6]
             classification = self.victims[vid][1][7]
-            if vx != None and vy != None:
-                print(f"{(vx, vy)} + {gravity} + {classification}")
-            
+
             d = self.distance(current, (vx, vy))
-            total_cost += d
+            total_cost += d + 1
             cost_return = total_cost + self.distance((vx, vy), (0,0))
             if cost_return > self.battery:
                 break
@@ -70,21 +66,14 @@ class GeneticAlgorithm:
         straight = abs(dx - dy)
         return 1.5*diag + straight
     
-    def compute_distances(self):
-        keys = list(self.victims.keys())
-        dist = {}
-        for i in keys:
-            for j in keys:
-                if i != j:
-                    dist[(i, j)] = self.distance(self.victims[i][0], self.victims[j][0])
-        return dist
-
     def run(self):
         ids = list(self.victims.keys())
-        population = [random.sample(ids, len(ids)) for _ in range(POPULATION_SIZE)]
-        #print(f"population: {population}")
+        population = [random.sample(ids, len(ids)) for _ in range(self.population_size)]
         best_solution = None
         best_fitness = -float('inf')
+
+        best_history = []
+        mean_history = []
 
         for gen in range(GENERATIONS):
             fitness_values = [self.fitness(seq) for seq in population]
@@ -93,7 +82,7 @@ class GeneticAlgorithm:
             elite = np.argmax(fitness_values)
             new_population.append(deepcopy(population[elite]))
 
-            while len(new_population) < POPULATION_SIZE:
+            while len(new_population) < self.population_size:
                 parent1 = self.selection(population, fitness_values)
                 parent2 = self.selection(population, fitness_values)
                 child = self.crossover(parent1, parent2)
@@ -102,8 +91,25 @@ class GeneticAlgorithm:
             
             population = new_population
 
+            best_gen = max(fitness_values)
+            mean_gen = np.mean(fitness_values)
+            best_history.append(best_gen)
+            mean_history.append(mean_gen)
+
             if max(fitness_values) > best_fitness:
                 best_fitness = max(fitness_values)
                 best_solution = deepcopy(population[np.argmax(fitness_values)])
-        
+
+        '''
+        plt.figure(figsize=(10, 5))
+        plt.plot(best_history, label="Melhor Fitness")
+        plt.plot(mean_history, label="Fitness Médio", linestyle="--")
+        plt.title("Evolução do Fitness ao longo das Gerações")
+        plt.xlabel("Geração")
+        plt.ylabel("Fitness")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+        '''
+
         return {vid : self.victims[vid] for vid in best_solution} 
