@@ -145,6 +145,7 @@ class Explorer(AbstAgent):
             self.explore()
             return True
 
+        
         # no more come back walk actions to execute or already at base
         if self.x == 0 and self.y == 0:
             self.resc.sync_explorers(self.map, self.victims)
