@@ -260,9 +260,9 @@ class Env:
 
             if not active_or_idle:
                 print("ENV: no active or idle agent scheduled for execution... terminating")
-                if self.dic["STATS_PER_AG"] == 1:
-                    print("RESULTS PER AGENT")
-                    self.print_results()
+                #if self.dic["STATS_PER_AG"] == 1:
+                    #print("RESULTS PER AGENT")
+                    #self.print_results()
 
                 if self.dic["STATS_ALL_AG"] == 1:
                     print("\n--------------")
@@ -286,9 +286,9 @@ class Env:
                 sev_value.append(self.sev_value[v])
                 tot_sev = tot_sev + self.sev_value[v]
 
-            print(f"\n{idents}{type_str} victims: (ID, Sev label, Sev value)")
-            for i in range(len(victims)):
-                print(f"{idents}({victims[i]:d}, {sev_label[i]:d}, {sev_value[i]:.1f})", end=' ')
+            #print(f"\n{idents}{type_str} victims: (ID, Sev label, Sev value)")
+            #for i in range(len(victims)):
+                #print(f"{idents}({victims[i]:d}, {sev_label[i]:d}, {sev_value[i]:.1f})", end=' ')
 
             print("\n")
             if self.sev_label.count(1) > 0:
@@ -309,16 +309,16 @@ class Env:
             
             print(f"{idents}Sum of gravities of all {type_str} victims = {tot_sev:.2f} of a total of {self.sum_gravity:.2f}")
             print(f"{idents}  % of gravities of all {type_str} victims = {tot_sev/self.sum_gravity:.2f}")
-            print(f"{idents}--------------------------------------")
-            print(f"{idents}CSV of {type_str} victims")
-            print(f"{idents}V{sub}1,V{sub}2,V{sub}3,V{sub}4,V{sub}g")
-            print(f"{idents}{sev_label.count(1)},{sev_label.count(2)},{sev_label.count(3)},{sev_label.count(4)},{weighted}")
+            #print(f"{idents}--------------------------------------")
+            #print(f"{idents}CSV of {type_str} victims")
+            #print(f"{idents}V{sub}1,V{sub}2,V{sub}3,V{sub}4,V{sub}g")
+            #print(f"{idents}{sev_label.count(1)},{sev_label.count(2)},{sev_label.count(3)},{sev_label.count(4)},{weighted}")
         else:
             print(f"{idents}No {type_str} victims")
-            print(f"{idents}--------------------------------------")
-            print(f"{idents}CSV of {type_str} victims")
-            print(f"{idents}V{sub}1,V{sub}2,V{sub}3,V{sub}4,V{sub}g")
-            print(f"{idents}0,0,0,0,0.0")
+            #print(f"{idents}--------------------------------------")
+            #print(f"{idents}CSV of {type_str} victims")
+            #print(f"{idents}V{sub}1,V{sub}2,V{sub}3,V{sub}4,V{sub}g")
+            #print(f"{idents}0,0,0,0,0.0")
 
     def print_results(self):
         """ For each agent, print found victims and saved victims by severity
@@ -352,8 +352,8 @@ class Env:
         print(f"   Total of victims    (V)  = {self.nb_of_victims:3d}")
         print(f"   Sum of all gravities(SG) = {self.sum_gravity:.2f}")
         print(f"   --------------------------------------")
-        print(f"   CSV of nb. total of victims")
-        print(f"   V1,V2,V3,V4,SG")
+        #print(f"   CSV of nb. total of victims")
+        #print(f"   V1,V2,V3,V4,SG")
         print(f"   {self.sev_label.count(1)},{self.sev_label.count(2)},{self.sev_label.count(3)},{self.sev_label.count(4)},{self.sum_gravity}")
 
         found = []
@@ -371,6 +371,6 @@ class Env:
         print(f"")
         print(f" *** SAVED victims by all rescuer agents ***")
         self.__print_victims(saved, "saved", "s", ident=5)
-        print(f"\n *** END OF STATS ***")
+        print(f"\n")
 
 

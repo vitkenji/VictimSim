@@ -79,22 +79,13 @@ class Rescuer(AbstAgent):
             values[1].extend([regressor.predict([values[1][1:]])[0].item(), classifier.predict([values[1][1:]])[0].item()])
 
     def sequencing(self):
-        """ Currently, this method sort the victims by the x coordinate followed by the y coordinate
-            @TODO It must be replaced by a Genetic Algorithm that finds the possibly best visiting order """
-
-        """ We consider an agent may have different sequences of rescue. The idea is the rescuer can execute
-            sequence[0], sequence[1], ...
-            A sequence is a dictionary with the following structure: [vic_id]: ((x,y), [<vs>]"""
-
         new_sequences = []
-
-        #genetic_algorithm = GeneticAlgorithm(self.get_rtime(), self.victims)
-        #genetic_algorithm.run()
-        for seq in self.sequences:   # a list of sequences, being each sequence a dictionary
-            seq = dict(sorted(seq.items(), key=lambda item: item[1]))
-            new_sequences.append(seq)       
-            #print(f"{self.NAME} sequence of visit:\n{seq}\n")
-
+        for cluster in self.clusters:
+            ga = GeneticAlgorithm(self.get_rtime(), cluster)
+            if len(self.victims) > 0:
+                best_sequence = ga.run()
+                new_sequences.append(best_sequence)
+                
         self.sequences = new_sequences
 
     def planner(self):
